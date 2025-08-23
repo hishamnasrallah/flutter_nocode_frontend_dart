@@ -4,8 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/application_provider.dart';
+import '../../providers/builder_provider.dart';
+import '../../data/models/screen.dart';
+import '../../data/models/build_history.dart';
+import '../../data/repositories/application_repository.dart';
+import '../../data/repositories/screen_repository.dart';
+import '../../data/services/api_service.dart';
+import '../../data/services/storage_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/utils/helpers.dart';
 
 class ApplicationDetailScreen extends StatefulWidget {
   final String applicationId;
@@ -19,17 +27,115 @@ class ApplicationDetailScreen extends StatefulWidget {
 class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late ApplicationRepository _applicationRepository;
+  late ScreenRepository _screenRepository;
+
+  List<Screen> _screens = [];
+  List<BuildHistory> _buildHistory = [];
+  List<Map<String, dynamic>> _dataSources = [];
+  bool _isLoadingScreens = false;
+  bool _isLoadingBuilds = false;
+  bool _isLoadingDataSources = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+
+    // Initialize repositories
+    final storageService = StorageService();
+    final apiService = ApiService(storageService);
+    _applicationRepository = ApplicationRepository(apiService);
+    _screenRepository = ScreenRepository(apiService);
+
     _loadApplicationDetails();
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      switch (_tabController.index) {
+        case 1: // Screens tab
+          if (_screens.isEmpty && !_isLoadingScreens) {
+            _loadScreens();
+          }
+          break;
+        case 2: // Data tab
+          if (_dataSources.isEmpty && !_isLoadingDataSources) {
+            _loadDataSources();
+          }
+          break;
+        case 3: // Build tab
+          if (_buildHistory.isEmpty && !_isLoadingBuilds) {
+            _loadBuildHistory();
+          }
+          break;
+      }
+    }
   }
 
   Future<void> _loadApplicationDetails() async {
     final provider = context.read<ApplicationProvider>();
     await provider.fetchApplicationDetail(widget.applicationId);
+  }
+
+  Future<void> _loadScreens() async {
+    setState(() {
+      _isLoadingScreens = true;
+    });
+
+    try {
+      final screens = await _screenRepository.getScreens(applicationId: widget.applicationId);
+      setState(() {
+        _screens = screens;
+        _isLoadingScreens = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading screens: $e');
+      setState(() {
+        _isLoadingScreens = false;
+      });
+    }
+  }
+
+  Future<void> _loadBuildHistory() async {
+    setState(() {
+      _isLoadingBuilds = true;
+    });
+
+    try {
+      final history = await _applicationRepository.getBuildHistory(widget.applicationId);
+      setState(() {
+        _buildHistory = history;
+        _isLoadingBuilds = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading build history: $e');
+      setState(() {
+        _isLoadingBuilds = false;
+      });
+    }
+  }
+
+  Future<void> _loadDataSources() async {
+    setState(() {
+      _isLoadingDataSources = true;
+    });
+
+    try {
+      // TODO: Implement data sources API call when endpoint is available
+      // For now, using mock data
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() {
+        _dataSources = [];
+        _isLoadingDataSources = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading data sources: $e');
+      setState(() {
+        _isLoadingDataSources = false;
+      });
+    }
   }
 
   @override
@@ -346,52 +452,150 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   Widget _buildScreensTab(dynamic app) {
-    // This would show a list of screens
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.phone_android, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Manage your app screens',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.push('/applications/${app.id}/builder');
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('Open Screen Builder'),
-          ),
-        ],
+    if (_isLoadingScreens) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_screens.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.phone_android, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No screens yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create your first screen in the builder',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.push('/applications/${app.id}/builder');
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Screen'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadScreens,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _screens.length,
+        itemBuilder: (context, index) {
+          final screen = _screens[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: screen.isHomeScreen
+                    ? AppColors.primary.withOpacity(0.1)
+                    : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  screen.isHomeScreen ? Icons.home : Icons.phone_android,
+                  color: screen.isHomeScreen ? AppColors.primary : Colors.grey[600],
+                ),
+              ),
+              title: Text(screen.name),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Route: ${screen.routeName}'),
+                  if (screen.widgetsCount != null)
+                    Text('${screen.widgetsCount} widgets'),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (screen.isHomeScreen)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'HOME',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      context.push('/applications/${app.id}/builder');
+                      // TODO: Navigate to specific screen in builder
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildDataTab(dynamic app) {
-    // This would show data sources and fields
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.storage, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Configure data sources',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              // TODO: Navigate to data sources
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Data Source'),
-          ),
-        ],
-      ),
+    if (_isLoadingDataSources) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_dataSources.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.storage, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No data sources configured',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add API endpoints or databases',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                // TODO: Navigate to data sources
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Data Source'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // TODO: Display data sources when available
+    return const Center(
+      child: Text('Data sources will be displayed here'),
     );
   }
 
@@ -453,6 +657,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                                   backgroundColor: AppColors.success,
                                 ),
                               );
+                              // Refresh build history
+                              _loadBuildHistory();
                             }
                           },
                           icon: const Icon(Icons.build),
@@ -480,34 +686,110 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  context.push('/builds/${app.id}');
-                },
-                child: const Text('View All'),
-              ),
+              if (_buildHistory.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    context.push('/builds/${app.id}');
+                  },
+                  child: const Text('View All'),
+                ),
             ],
           ),
           const SizedBox(height: 16),
-          // Build history list would go here
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.history, size: 48, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No builds yet',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
+
+          if (_isLoadingBuilds)
+            const Center(child: CircularProgressIndicator())
+          else if (_buildHistory.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.history, size: 48, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No builds yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Build your application to see history',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+            )
+          else
+            ...List.generate(
+              _buildHistory.take(5).length,
+              (index) => _buildHistoryCard(_buildHistory[index]),
             ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(BuildHistory build) {
+    final isSuccess = build.status == 'success';
+    final color = isSuccess ? AppColors.success :
+                   build.status == 'failed' ? AppColors.error : AppColors.warning;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isSuccess ? Icons.check :
+            build.status == 'failed' ? Icons.close : Icons.sync,
+            color: color,
+          ),
+        ),
+        title: Text('Build #${build.buildId.substring(0, 8)}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(Helpers.formatDateTime(build.buildStartTime)),
+            if (build.durationDisplay != null)
+              Text('Duration: ${build.durationDisplay}'),
+            if (build.apkSizeMb != null && isSuccess)
+              Text('Size: ${build.apkSizeMb!.toStringAsFixed(2)} MB'),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSuccess && build.apkFile != null)
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () async {
+                  // TODO: Download APK
+                },
+                tooltip: 'Download APK',
+              ),
+            IconButton(
+              icon: const Icon(Icons.description),
+              onPressed: () {
+                // TODO: View logs
+              },
+              tooltip: 'View Logs',
+            ),
+          ],
+        ),
       ),
     );
   }

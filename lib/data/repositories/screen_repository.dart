@@ -12,14 +12,24 @@ class ScreenRepository {
   ScreenRepository(this._apiService);
 
   Future<List<Screen>> getScreens({String? applicationId}) async {
-    final queryParams = applicationId != null ? {'application': applicationId} : null;
-    final response = await _apiService.get(
-      ApiEndpoints.screens,
-      queryParameters: queryParams,
-    );
-    final List<dynamic> data = response.data['results'] ?? response.data;
-    return data.map((json) => Screen.fromJson(json)).toList();
+  final queryParams = applicationId != null ? {'application': applicationId} : null;
+  final response = await _apiService.get(
+    ApiEndpoints.screens,
+    queryParameters: queryParams,
+  );
+
+  // Handle paginated response
+  List<dynamic> data;
+  if (response.data is Map && response.data.containsKey('results')) {
+    data = response.data['results'] as List;
+  } else if (response.data is List) {
+    data = response.data as List;
+  } else {
+    data = [];
   }
+
+  return data.map((json) => Screen.fromJson(json)).toList();
+}
 
   Future<Screen> getScreenDetail(String id) async {
     final response = await _apiService.get(ApiEndpoints.screenDetail(id));

@@ -75,14 +75,35 @@ class Application extends Equatable {
       return DateTime.now();
     }
 
+    // Handle theme field - could be int, Map, or null
+    int? parseThemeId(dynamic themeData) {
+      if (themeData == null) return null;
+      if (themeData is int) return themeData;
+      if (themeData is Map && themeData.containsKey('id')) {
+        return themeData['id'] as int;
+      }
+      return null;
+    }
+
+    // Handle theme name - could be from theme object or direct field
+    String? parseThemeName(Map<String, dynamic> json) {
+      if (json['theme_name'] != null) {
+        return json['theme_name'] as String;
+      }
+      if (json['theme'] is Map && json['theme']['name'] != null) {
+        return json['theme']['name'] as String;
+      }
+      return null;
+    }
+
     return Application(
       id: json['id'] as int,
       name: json['name'] as String,
       description: json['description'] as String?,
       packageName: json['package_name'] as String,
-      version: json['version'] as String,
-      themeId: json['theme'] as int? ?? json['theme_id'] as int?,
-      themeName: json['theme_name'] as String?,
+      version: json['version'] as String? ?? '1.0.0',
+      themeId: parseThemeId(json['theme']) ?? parseThemeId(json['theme_id']),
+      themeName: parseThemeName(json),
       buildStatus: json['build_status'] as String? ?? 'not_built',
       apkFile: json['apk_file'] as String?,
       sourceCodeZip: json['source_code_zip'] as String?,
