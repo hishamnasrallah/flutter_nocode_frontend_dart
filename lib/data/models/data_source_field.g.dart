@@ -1,0 +1,29 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'data_source_field.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+DataSourceField _$DataSourceFieldFromJson(Map<String, dynamic> json) =>
+    DataSourceField(
+      id: (json['id'] as num).toInt(),
+      dataSource: (json['dataSource'] as num).toInt(),
+      fieldName: json['fieldName'] as String,
+      fieldType: json['fieldType'] as String,
+      displayName: json['displayName'] as String,
+      isRequired: json['isRequired'] as bool,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+
+Map<String, dynamic> _$DataSourceFieldToJson(DataSourceField instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'dataSource': instance.dataSource,
+      'fieldName': instance.fieldName,
+      'fieldType': instance.fieldType,
+      'displayName': instance.displayName,
+      'isRequired': instance.isRequired,
+      'createdAt': instance.createdAt.toIso8601String(),
+    };

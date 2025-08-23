@@ -1,0 +1,46 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+WidgetProperty _$WidgetPropertyFromJson(Map<String, dynamic> json) =>
+    WidgetProperty(
+      id: (json['id'] as num).toInt(),
+      widget: (json['widget'] as num).toInt(),
+      propertyName: json['propertyName'] as String,
+      propertyType: json['propertyType'] as String,
+      stringValue: json['stringValue'] as String?,
+      integerValue: (json['integerValue'] as num?)?.toInt(),
+      decimalValue: (json['decimalValue'] as num?)?.toDouble(),
+      booleanValue: json['booleanValue'] as bool?,
+      colorValue: json['colorValue'] as String?,
+      alignmentValue: json['alignmentValue'] as String?,
+      urlValue: json['urlValue'] as String?,
+      jsonValue: json['jsonValue'] as String?,
+      actionReference: (json['actionReference'] as num?)?.toInt(),
+      dataSourceFieldReference:
+          (json['dataSourceFieldReference'] as num?)?.toInt(),
+      screenReference: (json['screenReference'] as num?)?.toInt(),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      value: json['value'],
+    );
+
+Map<String, dynamic> _$WidgetPropertyToJson(WidgetProperty instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'widget': instance.widget,
+      'propertyName': instance.propertyName,
+      'propertyType': instance.propertyType,
+      'stringValue': instance.stringValue,
+      'integerValue': instance.integerValue,
+      'decimalValue': instance.decimalValue,
+      'booleanValue': instance.booleanValue,
+      'colorValue': instance.colorValue,
+      'alignmentValue': instance.alignmentValue,
+      'urlValue': instance.urlValue,
+      'jsonValue': instance.jsonValue,
+      'actionReference': instance.actionReference,
+      'dataSourceFieldReference': instance.dataSourceFieldReference,
+      'screenReference': instance.screenReference,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'value': instance.value,
+    };
