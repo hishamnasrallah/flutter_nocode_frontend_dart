@@ -1,4 +1,3 @@
-
 // lib/presentation/applications/application_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,11 +43,60 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       );
     }
 
+    if (provider.error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Error loading application',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  provider.error ?? 'Unknown error',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _loadApplicationDetails(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (app == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Application Not Found')),
-        body: const Center(
-          child: Text('The requested application could not be found.'),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search_off, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text('The requested application could not be found.'),
+              const SizedBox(height: 8),
+              Text('Application ID: ${widget.applicationId}'),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _loadApplicationDetails(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }

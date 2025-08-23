@@ -28,12 +28,38 @@ class ThemeProvider extends ChangeNotifier {
 
     try {
       final response = await _apiService.get(ApiEndpoints.themes);
-      final List<dynamic> data = response.data['results'] ?? response.data;
+
+      debugPrint('🎨 Themes Response: ${response.data}');
+
+      // Handle different response formats
+      List<dynamic> data;
+      if (response.data is List) {
+        // Direct array response
+        data = response.data as List;
+        debugPrint('🎨 Direct array with ${data.length} items');
+      } else if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+        if (responseMap.containsKey('results')) {
+          // Paginated response
+          data = responseMap['results'] as List;
+          debugPrint('🎨 Paginated response with ${data.length} items');
+        } else {
+          // Empty or unexpected format
+          data = [];
+          debugPrint('🎨 No results key found in response');
+        }
+      } else {
+        data = [];
+        debugPrint('🎨 Unexpected response format');
+      }
+
       _themes = data.map((json) => AppTheme.fromJson(json)).toList();
-      debugPrint('Fetched ${_themes.length} themes');
-    } catch (e) {
+      debugPrint('🎨 Successfully parsed ${_themes.length} themes');
+
+    } catch (e, stackTrace) {
       _error = e.toString();
-      debugPrint('Error fetching themes: $_error');
+      debugPrint('❌ Error fetching themes: $_error');
+      debugPrint('❌ Stack trace: $stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();

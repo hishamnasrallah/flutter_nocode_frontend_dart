@@ -28,10 +28,63 @@ class ApplicationProvider extends ChangeNotifier {
 
     try {
       final response = await _apiService.get(ApiEndpoints.applications);
-      final List<dynamic> data = response.data['results'] ?? response.data;
-      _applications = data.map((json) => Application.fromJson(json)).toList();
-    } catch (e) {
+
+      debugPrint('📱 Applications API called: ${ApiEndpoints.applications}');
+      debugPrint('📱 Response type: ${response.data.runtimeType}');
+      debugPrint('📱 Full Response: ${response.data}');
+
+      // Handle different response formats
+      List<dynamic> data;
+      if (response.data is List) {
+        // Direct array response
+        data = response.data as List;
+        debugPrint('📱 Direct array with ${data.length} items');
+      } else if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+        debugPrint('📱 Response map keys: ${responseMap.keys.toList()}');
+
+        if (responseMap.containsKey('results')) {
+          // Paginated response
+          data = responseMap['results'] as List;
+          debugPrint('📱 Found "results" key with ${data.length} items');
+        } else if (responseMap.containsKey('data')) {
+          // Sometimes APIs wrap in 'data' key
+          data = responseMap['data'] as List;
+          debugPrint('📱 Found "data" key with ${data.length} items');
+        } else if (responseMap.containsKey('applications')) {
+          // Sometimes APIs use the resource name
+          data = responseMap['applications'] as List;
+          debugPrint('📱 Found "applications" key with ${data.length} items');
+        } else {
+          // Empty or unexpected format
+          data = [];
+          debugPrint('📱 No standard key found. Available keys: ${responseMap.keys}');
+        }
+      } else {
+        data = [];
+        debugPrint('📱 Unexpected response format: ${response.data.runtimeType}');
+      }
+
+      debugPrint('📱 About to parse ${data.length} applications');
+
+      _applications = [];
+      for (int i = 0; i < data.length; i++) {
+        try {
+          final app = Application.fromJson(data[i]);
+          _applications.add(app);
+          debugPrint('✅ Parsed application ${i + 1}: ${app.name}');
+        } catch (e) {
+          debugPrint('❌ Failed to parse application at index $i: $e');
+          debugPrint('❌ Data that failed: ${data[i]}');
+        }
+      }
+
+      debugPrint('📱 Successfully loaded ${_applications.length} applications');
+
+    } catch (e, stackTrace) {
       _error = e.toString();
+      debugPrint('❌ Error fetching applications: $_error');
+      debugPrint('❌ Stack trace: $stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -44,13 +97,45 @@ class ApplicationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('📱 Fetching application detail for ID: $id');
       final response = await _apiService.get(ApiEndpoints.applicationDetail(id));
-      _selectedApplication = Application.fromJson(response.data);
+
+      debugPrint('📱 Application Detail Response Type: ${response.data.runtimeType}');
+      debugPrint('📱 Application Detail Response: ${response.data}');
+
+      // Check if response is wrapped
+      dynamic applicationData;
+      if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+
+        // Check if the application data is wrapped in a key
+        if (responseMap.containsKey('application')) {
+          applicationData = responseMap['application'];
+          debugPrint('📱 Found application data in "application" key');
+        } else if (responseMap.containsKey('data')) {
+          applicationData = responseMap['data'];
+          debugPrint('📱 Found application data in "data" key');
+        } else {
+          // Direct response
+          applicationData = response.data;
+          debugPrint('📱 Using direct response data');
+        }
+      } else {
+        applicationData = response.data;
+      }
+
+      debugPrint('📱 Parsing application data: $applicationData');
+
+      _selectedApplication = Application.fromJson(applicationData);
+
+      debugPrint('✅ Successfully parsed application: ${_selectedApplication?.name}');
 
       // Fetch statistics
       await fetchApplicationStatistics(id);
-    } catch (e) {
+    } catch (e, stackTrace) {
       _error = e.toString();
+      debugPrint('❌ Error fetching application detail: $_error');
+      debugPrint('❌ Stack trace: $stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -64,53 +149,54 @@ class ApplicationProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Statistics are optional, don't show error
+      debugPrint('⚠️ Could not fetch statistics: $e');
     }
   }
 
   Future<Application?> createApplication({
-  required String name,
-  required String packageName,
-  required String description,
-  required int themeId,
-  String version = '1.0.0',
-}) async {
-  _isLoading = true;
-  _error = null;
-  notifyListeners();
-
-  try {
-    debugPrint('Creating application with theme ID: $themeId');
-
-    final response = await _apiService.post(
-      ApiEndpoints.applications,
-      data: {
-        'name': name,
-        'package_name': packageName,
-        'description': description,
-        'theme_id': themeId,
-        'version': version,
-      },
-    );
-
-    debugPrint('Application created, parsing response...');
-    debugPrint('Response data: ${response.data}');
-
-    final application = Application.fromJson(response.data);
-    debugPrint('Application parsed successfully: ${application.name}');
-
-    _applications.insert(0, application);
-    _isLoading = false;
+    required String name,
+    required String packageName,
+    required String description,
+    required int themeId,
+    String version = '1.0.0',
+  }) async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
-    return application;
-  } catch (e, stackTrace) {
-    debugPrint('Error creating application: $e');
-    debugPrint('Stack trace: $stackTrace');
-    _error = e.toString();
-    _isLoading = false;
-    notifyListeners();
-    return null;
+
+    try {
+      debugPrint('Creating application with theme ID: $themeId');
+
+      final response = await _apiService.post(
+        ApiEndpoints.applications,
+        data: {
+          'name': name,
+          'package_name': packageName,
+          'description': description,
+          'theme_id': themeId,
+          'version': version,
+        },
+      );
+
+      debugPrint('Application created, parsing response...');
+      debugPrint('Response data: ${response.data}');
+
+      final application = Application.fromJson(response.data);
+      debugPrint('Application parsed successfully: ${application.name}');
+
+      _applications.insert(0, application);
+      _isLoading = false;
+      notifyListeners();
+      return application;
+    } catch (e, stackTrace) {
+      debugPrint('Error creating application: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
   }
-}
 
   Future<bool> updateApplication(String id, Map<String, dynamic> data) async {
     _isLoading = true;

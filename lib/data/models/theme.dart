@@ -8,14 +8,23 @@ part 'theme.g.dart';
 class AppTheme extends Equatable {
   final int id;
   final String name;
+  @JsonKey(name: 'primary_color')
   final String primaryColor;
+  @JsonKey(name: 'accent_color')
   final String accentColor;
+  @JsonKey(name: 'background_color')
   final String backgroundColor;
+  @JsonKey(name: 'text_color')
   final String textColor;
+  @JsonKey(name: 'font_family')
   final String fontFamily;
+  @JsonKey(name: 'is_dark_mode')
   final bool isDarkMode;
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  @JsonKey(name: 'updated_at')
   final DateTime updatedAt;
+  @JsonKey(name: 'applications_count')
   final int? applicationsCount;
 
   const AppTheme({

@@ -1,4 +1,5 @@
 // lib/data/services/api_service.dart
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -46,12 +47,28 @@ class ApiService {
 
   // Generic request methods
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.get(path, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
+  try {
+    debugPrint('🔵 GET Request: ${ApiEndpoints.baseUrl}$path');
+    debugPrint('🔵 Query params: $queryParameters');
+
+    final response = await _dio.get(path, queryParameters: queryParameters);
+
+    debugPrint('✅ Response status: ${response.statusCode}');
+    debugPrint('✅ Response data type: ${response.data.runtimeType}');
+    if (response.data is Map) {
+      debugPrint('✅ Response keys: ${(response.data as Map).keys.toList()}');
     }
+    if (response.data is List) {
+      debugPrint('✅ Response is array with ${(response.data as List).length} items');
+    }
+
+    return response;
+  } on DioException catch (e) {
+    debugPrint('❌ API Error: ${e.message}');
+    debugPrint('❌ Error response: ${e.response?.data}');
+    throw _handleError(e);
   }
+}
 
   Future<Response> post(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
     try {
