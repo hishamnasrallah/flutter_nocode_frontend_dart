@@ -45,6 +45,15 @@ class BuildHistory extends Equatable {
     return null;
   }
 
+  // Parse numeric values safely (handle both String and num)
+  double? parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   return BuildHistory(
     id: json['id'] as int,
     application: json['application'] as int,
@@ -52,13 +61,13 @@ class BuildHistory extends Equatable {
     status: json['status']?.toString() ?? 'unknown',
     buildStartTime: parseDate(json['build_start_time']) ?? DateTime.now(),
     buildEndTime: parseDate(json['build_end_time']),
-    durationSeconds: (json['duration_seconds'] as num?)?.toDouble(),
+    durationSeconds: parseDouble(json['duration_seconds']),
     durationDisplay: json['duration_display']?.toString(),
     logOutput: json['log_output']?.toString(),
     errorMessage: json['error_message']?.toString(),
     apkFile: json['apk_file']?.toString(),
     sourceCodeZip: json['source_code_zip']?.toString(),
-    apkSizeMb: (json['apk_size_mb'] as num?)?.toDouble(),
+    apkSizeMb: parseDouble(json['apk_size_mb']),  // Now handles String values
   );
 }
 

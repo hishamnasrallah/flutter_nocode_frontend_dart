@@ -80,23 +80,37 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   Future<void> _loadScreens() async {
+  setState(() {
+    _isLoadingScreens = true;
+  });
+
+  try {
+    debugPrint('📱 Loading screens for application: ${widget.applicationId}');
+    final screens = await _screenRepository.getScreens(applicationId: widget.applicationId);
+    debugPrint('📱 Successfully loaded ${screens.length} screens');
+
     setState(() {
-      _isLoadingScreens = true;
+      _screens = screens;
+      _isLoadingScreens = false;
+    });
+  } catch (e, stackTrace) {
+    debugPrint('❌ Error loading screens: $e');
+    debugPrint('❌ Stack trace: $stackTrace');
+    setState(() {
+      _isLoadingScreens = false;
     });
 
-    try {
-      final screens = await _screenRepository.getScreens(applicationId: widget.applicationId);
-      setState(() {
-        _screens = screens;
-        _isLoadingScreens = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading screens: $e');
-      setState(() {
-        _isLoadingScreens = false;
-      });
+    // Show error to user
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load screens: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
   Future<void> _loadBuildHistory() async {
     setState(() {

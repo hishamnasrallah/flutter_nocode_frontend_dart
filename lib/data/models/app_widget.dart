@@ -33,8 +33,46 @@ class AppWidget extends Equatable {
     required this.updatedAt,
   });
 
-  factory AppWidget.fromJson(Map<String, dynamic> json) => _$AppWidgetFromJson(json);
-  Map<String, dynamic> toJson() => _$AppWidgetToJson(this);
+  factory AppWidget.fromJson(Map<String, dynamic> json) {
+  // Parse DateTime safely
+  DateTime parseDate(dynamic date) {
+    if (date == null) return DateTime.now();
+    if (date is String) return DateTime.parse(date);
+    return DateTime.now();
+  }
+
+  // Parse child widgets safely
+  List<AppWidget>? parseChildWidgets(dynamic data) {
+    if (data == null) return null;
+    if (data is List) {
+      return data.map((w) => AppWidget.fromJson(w)).toList();
+    }
+    return null;
+  }
+
+  // Parse properties safely
+  List<WidgetProperty>? parseProperties(dynamic data) {
+    if (data == null) return null;
+    if (data is List) {
+      return data.map((p) => WidgetProperty.fromJson(p)).toList();
+    }
+    return null;
+  }
+
+  return AppWidget(
+    id: json['id'] as int,
+    screen: json['screen'] as int,
+    widgetType: json['widget_type']?.toString() ?? 'Container',
+    parentWidget: json['parent_widget'] as int?,
+    order: json['order'] as int? ?? 0,
+    widgetId: json['widget_id']?.toString(),
+    properties: parseProperties(json['properties']),
+    childWidgets: parseChildWidgets(json['child_widgets']),
+    canHaveChildren: json['can_have_children'] as bool?,
+    createdAt: parseDate(json['created_at']),
+    updatedAt: parseDate(json['updated_at']),
+  );
+}
 
   @override
   List<Object?> get props => [

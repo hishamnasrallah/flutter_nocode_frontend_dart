@@ -1,5 +1,6 @@
 
 // lib/data/repositories/screen_repository.dart
+import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../models/screen.dart';
 import '../models/app_widget.dart';
@@ -13,22 +14,45 @@ class ScreenRepository {
 
   Future<List<Screen>> getScreens({String? applicationId}) async {
   final queryParams = applicationId != null ? {'application': applicationId} : null;
+
+  debugPrint('📱 Fetching screens with params: $queryParams');
+
   final response = await _apiService.get(
     ApiEndpoints.screens,
     queryParameters: queryParams,
   );
 
+  debugPrint('📱 Screens response type: ${response.data.runtimeType}');
+
   // Handle paginated response
   List<dynamic> data;
   if (response.data is Map && response.data.containsKey('results')) {
     data = response.data['results'] as List;
+    debugPrint('📱 Found ${data.length} screens in paginated response');
   } else if (response.data is List) {
     data = response.data as List;
+    debugPrint('📱 Found ${data.length} screens in direct array response');
   } else {
     data = [];
+    debugPrint('📱 No screens found in response');
   }
 
-  return data.map((json) => Screen.fromJson(json)).toList();
+  // Parse each screen with error handling
+  final screens = <Screen>[];
+  for (int i = 0; i < data.length; i++) {
+    try {
+      debugPrint('📱 Parsing screen $i: ${data[i]}');
+      final screen = Screen.fromJson(data[i]);
+      screens.add(screen);
+      debugPrint('✅ Successfully parsed screen: ${screen.name}');
+    } catch (e) {
+      debugPrint('❌ Failed to parse screen at index $i: $e');
+      debugPrint('❌ Screen data: ${data[i]}');
+      rethrow; // Re-throw to see the exact error
+    }
+  }
+
+  return screens;
 }
 
   Future<Screen> getScreenDetail(String id) async {

@@ -54,11 +54,15 @@ class Screen extends Equatable {
     return null;
   }
 
+  // Handle nullable strings with defaults
+  final name = json['name']?.toString() ?? 'Unnamed Screen';
+  final routeName = json['route_name']?.toString() ?? '/screen';
+
   return Screen(
     id: json['id'] as int,
     application: json['application'] as int,
-    name: json['name']?.toString() ?? 'Unnamed Screen',
-    routeName: json['route_name']?.toString() ?? '/screen',
+    name: name,
+    routeName: routeName,
     isHomeScreen: json['is_home_screen'] == true,
     appBarTitle: json['app_bar_title']?.toString(),
     showAppBar: json['show_app_bar'] != false,  // defaults to true
