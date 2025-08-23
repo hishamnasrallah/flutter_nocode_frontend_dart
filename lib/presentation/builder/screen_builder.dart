@@ -1,10 +1,12 @@
-
 // lib/presentation/builder/screen_builder.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/builder_provider.dart';
 import '../../providers/application_provider.dart';
 import '../../core/constants/app_colors.dart';
+import 'widget_picker.dart';
+import 'property_editor.dart';
+import '../../data/models/app_widget.dart';
 
 class ScreenBuilder extends StatefulWidget {
   final String applicationId;
@@ -17,6 +19,7 @@ class ScreenBuilder extends StatefulWidget {
 
 class _ScreenBuilderState extends State<ScreenBuilder> {
   String? _selectedScreenId;
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -28,11 +31,13 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     final builderProvider = context.read<BuilderProvider>();
     await builderProvider.fetchScreens(widget.applicationId);
 
-    if (builderProvider.screens.isNotEmpty) {
+    if (builderProvider.screens.isNotEmpty && mounted) {
       setState(() {
         _selectedScreenId = builderProvider.screens.first.id.toString();
+        _isInitialized = true;
       });
       await builderProvider.fetchScreenDetail(_selectedScreenId!);
+      await builderProvider.fetchWidgetsForScreen(_selectedScreenId!);
     }
   }
 
@@ -41,28 +46,46 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     final builderProvider = context.watch<BuilderProvider>();
     final applicationProvider = context.watch<ApplicationProvider>();
 
+    if (!_isInitialized) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Loading Builder...'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Builder - ${applicationProvider.selectedApplication?.name ?? 'App'}'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _loadData();
+            },
+            tooltip: 'Refresh',
+          ),
+          IconButton(
             icon: const Icon(Icons.preview),
             onPressed: () {
-              // TODO: Show preview
+              _showPreviewDialog(context);
             },
             tooltip: 'Preview',
           ),
           IconButton(
             icon: const Icon(Icons.code),
             onPressed: () {
-              // TODO: Show generated code
+              _showCodePreview(context);
             },
             tooltip: 'View Code',
           ),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () {
-              // TODO: Save changes
+              _saveChanges();
             },
             tooltip: 'Save',
           ),
@@ -79,7 +102,12 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                 right: BorderSide(color: Colors.grey[300]!),
               ),
             ),
-            child: _buildWidgetPalette(builderProvider),
+            child: WidgetPicker(
+              onWidgetSelected: (widgetData) {
+                _addWidgetToCanvas(widgetData);
+              },
+              screenId: _selectedScreenId,
+            ),
           ),
 
           // Center - Canvas/Preview
@@ -106,7 +134,12 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                 left: BorderSide(color: Colors.grey[300]!),
               ),
             ),
-            child: _buildPropertiesPanel(builderProvider),
+            child: PropertyEditor(
+              widget: builderProvider.selectedWidget,
+              onPropertyChanged: (propertyName, value) {
+                _updateWidgetProperty(propertyName, value);
+              },
+            ),
           ),
         ],
       ),
@@ -160,6 +193,7 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                     _selectedScreenId = value;
                   });
                   await builderProvider.fetchScreenDetail(value);
+                  await builderProvider.fetchWidgetsForScreen(value);
                 }
               },
             ),
@@ -174,7 +208,7 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: Screen settings
+              _showScreenSettingsDialog(context);
             },
             tooltip: 'Screen Settings',
           ),
@@ -183,106 +217,15 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     );
   }
 
-  Widget _buildWidgetPalette(BuilderProvider builderProvider) {
-    final widgetTypes = builderProvider.widgetTypes ?? {};
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: const Text(
-            'Widget Palette',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: [
-              _buildWidgetCategory('Layout', widgetTypes['layout'], AppColors.layoutWidget),
-              _buildWidgetCategory('Display', widgetTypes['display'], AppColors.displayWidget),
-              _buildWidgetCategory('Input', widgetTypes['input'], AppColors.inputWidget),
-              _buildWidgetCategory('Scrollable', widgetTypes['scrollable'], AppColors.scrollableWidget),
-              _buildWidgetCategory('Navigation', widgetTypes['navigation'], AppColors.navigationWidget),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWidgetCategory(String title, List<dynamic>? widgets, Color color) {
-    if (widgets == null || widgets.isEmpty) return const SizedBox();
-
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        ),
-        leading: Container(
-          width: 4,
-          height: 24,
-          color: color,
-        ),
-        initiallyExpanded: true,
-        children: widgets.map((widget) {
-          return Draggable<Map<String, dynamic>>(
-            data: widget,
-            feedback: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  widget['name'],
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-            child: ListTile(
-              dense: true,
-              leading: Icon(
-                _getIconData(widget['icon']),
-                size: 20,
-                color: color,
-              ),
-              title: Text(
-                widget['name'],
-                style: const TextStyle(fontSize: 14),
-              ),
-              subtitle: Text(
-                widget['description'],
-                style: const TextStyle(fontSize: 11),
-              ),
-              onTap: () {
-                _addWidget(widget);
-              },
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Widget _buildCanvas(BuilderProvider builderProvider) {
     return DragTarget<Map<String, dynamic>>(
-      onAccept: (widget) {
-        _addWidget(widget);
+      onWillAccept: (data) => true,
+      onAccept: (widgetData) {
+        _addWidgetToCanvas(widgetData);
       },
       builder: (context, candidateData, rejectedData) {
+        final isHighlighted = candidateData.isNotEmpty;
+
         return Container(
           color: Colors.grey[100],
           child: Center(
@@ -291,7 +234,10 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
               height: 667, // iPhone height
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: Colors.grey[400]!),
+                border: Border.all(
+                  color: isHighlighted ? AppColors.primary : Colors.grey[400]!,
+                  width: isHighlighted ? 2 : 1,
+                ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -365,136 +311,267 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                 ? Color(int.parse(screen.backgroundColor!.replaceAll('#', '0xFF')))
                 : Colors.white,
             child: builderProvider.widgets.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.widgets_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Drag widgets here',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _buildWidgetTree(builderProvider.widgets),
+                ? _buildEmptyCanvasState()
+                : _buildWidgetTreeView(builderProvider),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildWidgetTree(List<dynamic> widgets) {
-    // Simplified widget tree rendering
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: widgets.length,
-      itemBuilder: (context, index) {
-        final widget = widgets[index];
-        return _buildWidgetPreview(widget);
+  Widget _buildEmptyCanvasState() {
+    return DragTarget<Map<String, dynamic>>(
+      onWillAccept: (data) => true,
+      onAccept: (widgetData) {
+        _addWidgetToCanvas(widgetData);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHighlighted = candidateData.isNotEmpty;
+
+        return Container(
+          decoration: BoxDecoration(
+            border: isHighlighted
+                ? Border.all(color: AppColors.primary.withOpacity(0.5), width: 2)
+                : null,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.widgets_outlined,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Drag widgets here',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'or click a widget from the palette',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
   }
 
-  Widget _buildWidgetPreview(dynamic widget) {
-    // Simplified widget preview rendering
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _getWidgetIcon(widget.widgetType),
-            size: 20,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: 8),
-          Text(widget.widgetType),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.settings, size: 16),
-            onPressed: () {
-              // Select widget for properties editing
-              context.read<BuilderProvider>().selectWidget(widget);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, size: 16),
-            onPressed: () {
-              // Delete widget
-              context.read<BuilderProvider>().deleteWidget(widget.id.toString());
-            },
-          ),
-        ],
+  Widget _buildWidgetTreeView(BuilderProvider builderProvider) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: builderProvider.widgets.map((widget) {
+          return _buildWidgetItem(widget, builderProvider);
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildPropertiesPanel(BuilderProvider builderProvider) {
-    final selectedWidget = builderProvider.selectedWidget;
+  Widget _buildWidgetItem(AppWidget widget, BuilderProvider builderProvider) {
+    final isSelected = builderProvider.selectedWidget?.id == widget.id;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: const Text(
-            'Properties',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+    return GestureDetector(
+      onTap: () {
+        builderProvider.selectWidget(widget);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
           ),
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? AppColors.primary.withOpacity(0.05) : Colors.white,
         ),
-        if (selectedWidget == null)
-          const Expanded(
-            child: Center(
-              child: Text(
-                'Select a widget to edit properties',
-                style: TextStyle(color: Colors.grey),
+        child: Row(
+          children: [
+            Icon(
+              _getWidgetIcon(widget.widgetType),
+              size: 20,
+              color: isSelected ? AppColors.primary : Colors.grey[600],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.widgetType,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  if (widget.widgetId != null)
+                    Text(
+                      'ID: ${widget.widgetId}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
               ),
             ),
-          )
-        else
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  selectedWidget.widgetType,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Properties would be dynamically generated based on widget type
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Widget ID',
-                    border: OutlineInputBorder(),
-                  ),
-                  controller: TextEditingController(text: selectedWidget.widgetId),
-                ),
-                const SizedBox(height: 16),
-                // Add more property fields based on widget type
-              ],
+            IconButton(
+              icon: const Icon(Icons.arrow_upward, size: 16),
+              onPressed: () {
+                _moveWidgetUp(widget);
+              },
+              tooltip: 'Move Up',
             ),
-          ),
-      ],
+            IconButton(
+              icon: const Icon(Icons.arrow_downward, size: 16),
+              onPressed: () {
+                _moveWidgetDown(widget);
+              },
+              tooltip: 'Move Down',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, size: 16),
+              onPressed: () {
+                _deleteWidget(widget);
+              },
+              tooltip: 'Delete',
+              color: Colors.red,
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _addWidgetToCanvas(Map<String, dynamic> widgetData) async {
+    if (_selectedScreenId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a screen first'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final builderProvider = context.read<BuilderProvider>();
+
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Adding widget...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    final success = await builderProvider.addWidget(
+      screenId: _selectedScreenId!,
+      widgetType: widgetData['type'] ?? widgetData['name'],
+    );
+
+    if (success != null) {
+      // Refresh the widgets list
+      await builderProvider.fetchWidgetsForScreen(_selectedScreenId!);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Widget added successfully'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add widget: ${builderProvider.error}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteWidget(AppWidget widget) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Widget'),
+        content: Text('Are you sure you want to delete this ${widget.widgetType} widget?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final builderProvider = context.read<BuilderProvider>();
+      final success = await builderProvider.deleteWidget(widget.id.toString());
+
+      if (success) {
+        await builderProvider.fetchWidgetsForScreen(_selectedScreenId!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Widget deleted'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _moveWidgetUp(AppWidget widget) async {
+    final builderProvider = context.read<BuilderProvider>();
+    if (widget.order > 0) {
+      await builderProvider.reorderWidget(widget.id.toString(), widget.order - 1);
+      await builderProvider.fetchWidgetsForScreen(_selectedScreenId!);
+    }
+  }
+
+  Future<void> _moveWidgetDown(AppWidget widget) async {
+    final builderProvider = context.read<BuilderProvider>();
+    await builderProvider.reorderWidget(widget.id.toString(), widget.order + 1);
+    await builderProvider.fetchWidgetsForScreen(_selectedScreenId!);
+  }
+
+  void _updateWidgetProperty(String propertyName, dynamic value) {
+    final builderProvider = context.read<BuilderProvider>();
+    if (builderProvider.selectedWidget != null) {
+      builderProvider.updateWidgetProperty(
+        widgetId: builderProvider.selectedWidget!.id.toString(),
+        propertyName: propertyName,
+        propertyType: _getPropertyType(value),
+        value: value,
+      );
+    }
+  }
+
+  String _getPropertyType(dynamic value) {
+    if (value is String) return 'string';
+    if (value is int) return 'integer';
+    if (value is double) return 'decimal';
+    if (value is bool) return 'boolean';
+    if (value is Color) return 'color';
+    return 'string';
   }
 
   void _showAddScreenDialog(BuildContext context) {
@@ -563,36 +640,38 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     );
   }
 
-  void _addWidget(Map<String, dynamic> widgetData) async {
-    if (_selectedScreenId == null) return;
-
-    final builderProvider = context.read<BuilderProvider>();
-    await builderProvider.addWidget(
-      screenId: _selectedScreenId!,
-      widgetType: widgetData['type'],
+  void _showScreenSettingsDialog(BuildContext context) {
+    // TODO: Implement screen settings dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Screen settings coming soon!')),
     );
-
-    // Refresh screen
-    await builderProvider.fetchScreenDetail(_selectedScreenId!);
   }
 
-  IconData _getIconData(String? iconName) {
-    // Map icon names to IconData
-    // This is a simplified version - you might want to create a comprehensive mapping
-    switch (iconName) {
-      case 'view_column':
-        return Icons.view_column;
-      case 'view_stream':
-        return Icons.view_stream;
-      case 'crop_square':
-        return Icons.crop_square;
-      default:
-        return Icons.widgets;
-    }
+  void _showPreviewDialog(BuildContext context) {
+    // TODO: Implement preview dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Preview coming soon!')),
+    );
+  }
+
+  void _showCodePreview(BuildContext context) {
+    // TODO: Implement code preview
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Code preview coming soon!')),
+    );
+  }
+
+  void _saveChanges() {
+    // TODO: Implement save functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Changes saved!'),
+        backgroundColor: AppColors.success,
+      ),
+    );
   }
 
   IconData _getWidgetIcon(String widgetType) {
-    // Map widget types to icons
     switch (widgetType) {
       case 'Column':
         return Icons.view_agenda;
@@ -605,7 +684,23 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
       case 'Image':
         return Icons.image;
       case 'Button':
+      case 'ElevatedButton':
+      case 'TextButton':
         return Icons.smart_button;
+      case 'TextField':
+        return Icons.input;
+      case 'ListView':
+        return Icons.list;
+      case 'GridView':
+        return Icons.grid_on;
+      case 'Card':
+        return Icons.credit_card;
+      case 'Stack':
+        return Icons.layers;
+      case 'Padding':
+        return Icons.padding;
+      case 'Center':
+        return Icons.center_focus_strong;
       default:
         return Icons.widgets;
     }

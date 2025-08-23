@@ -141,41 +141,53 @@ class BuilderProvider extends ChangeNotifier {
   }
 
   Future<AppWidget?> addWidget({
-    required String screenId,
-    required String widgetType,
-    int? parentWidgetId,
-    int order = 0,
-    String? widgetId,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  required String screenId,
+  required String widgetType,
+  int? parentWidgetId,
+  int order = 0,
+  String? widgetId,
+}) async {
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
 
-    try {
-      final response = await _apiService.post(
-        ApiEndpoints.widgets,
-        data: {
-          'screen': screenId,
-          'widget_type': widgetType,
-          'parent_widget': parentWidgetId,
-          'order': order,
-          'widget_id': widgetId,
-        },
-      );
+  try {
+    // Build the data object
+    final data = {
+      'screen': screenId,
+      'widget_type': widgetType,
+      'order': order,
+    };
 
-      final widget = AppWidget.fromJson(response.data);
-      _widgets.add(widget);
-
-      _isLoading = false;
-      notifyListeners();
-      return widget;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return null;
+    // Only add optional fields if they have values
+    if (parentWidgetId != null) {
+      data['parent_widget'] = parentWidgetId;
     }
+
+    // Only add widget_id if it's not null and not empty
+    if (widgetId != null && widgetId.isNotEmpty) {
+      data['widget_id'] = widgetId;
+    }
+    // Don't send widget_id at all if it's null or empty
+
+    final response = await _apiService.post(
+      ApiEndpoints.widgets,
+      data: data,
+    );
+
+    final widget = AppWidget.fromJson(response.data);
+    _widgets.add(widget);
+
+    _isLoading = false;
+    notifyListeners();
+    return widget;
+  } catch (e) {
+    _error = e.toString();
+    _isLoading = false;
+    notifyListeners();
+    return null;
   }
+}
 
   Future<bool> updateWidgetProperty({
     required String widgetId,
@@ -286,10 +298,49 @@ class BuilderProvider extends ChangeNotifier {
     }
   }
 
-  void selectWidget(AppWidget? widget) {
-    _selectedWidget = widget;
+  // Add this method to fetch widgets for a specific screen
+Future<void> fetchWidgetsForScreen(String screenId) async {
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
+
+  try {
+    final response = await _apiService.get(
+      ApiEndpoints.widgets,
+      queryParameters: {'screen': screenId},
+    );
+
+    // Handle paginated or direct response
+    List<dynamic> data;
+    if (response.data is Map && response.data.containsKey('results')) {
+      data = response.data['results'] as List;
+    } else if (response.data is List) {
+      data = response.data as List;
+    } else {
+      data = [];
+    }
+
+    _widgets = data.map((json) => AppWidget.fromJson(json)).toList();
+
+    // Sort widgets by order
+    _widgets.sort((a, b) => a.order.compareTo(b.order));
+
+    debugPrint('Loaded ${_widgets.length} widgets for screen $screenId');
+  } catch (e) {
+    _error = e.toString();
+    debugPrint('Error fetching widgets: $_error');
+  } finally {
+    _isLoading = false;
     notifyListeners();
   }
+}
+
+// Update the selectWidget method to handle null properly
+void selectWidget(AppWidget? widget) {
+  _selectedWidget = widget;
+  debugPrint('Selected widget: ${widget?.widgetType} (ID: ${widget?.id})');
+  notifyListeners();
+}
 
   void clearError() {
     _error = null;

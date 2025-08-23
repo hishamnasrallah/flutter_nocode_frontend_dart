@@ -284,7 +284,7 @@ class _WidgetPickerState extends State<WidgetPicker> {
         elevation: 1,
         child: InkWell(
           onTap: () {
-            widget['onWidgetSelected']?.call(widget);
+            this.widget.onWidgetSelected(widget);
           },
           borderRadius: BorderRadius.circular(8),
           child: Container(
