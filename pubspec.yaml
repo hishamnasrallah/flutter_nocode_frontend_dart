@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.8.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -30,7 +30,7 @@ dependencies:
   flutter_secure_storage: ^9.0.0
 
   # JSON & Serialization
-  json_annotation: ^4.8.1
+  json_annotation: ^4.9.0
   equatable: ^2.0.5
 
   # UI Utilities

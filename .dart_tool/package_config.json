@@ -1013,7 +1013,7 @@
       "name": "flutter_nocode_frontend",
       "rootUri": "../",
       "packageUri": "lib/",
-      "languageVersion": "3.0"
+      "languageVersion": "3.8"
     }
   ],
   "generator": "pub",

@@ -154,6 +154,13 @@
       ]
     },
     {
+      "name": "json_annotation",
+      "version": "4.9.0",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "dio_cache_interceptor",
       "version": "4.0.3",
       "dependencies": [
@@ -441,13 +448,6 @@
       "dependencies": [
         "flutter",
         "intl"
-      ]
-    },
-    {
-      "name": "json_annotation",
-      "version": "4.9.0",
-      "dependencies": [
-        "meta"
       ]
     },
     {

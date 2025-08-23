@@ -57,8 +57,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       appBar: AppBar(
         title: Text(app.name),
         actions: [
-          PopupMenuButton(
-            itemBuilder: (context) => [
+          PopupMenuButton<String>(
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
               PopupMenuItem(
                 child: const Row(
                   children: [

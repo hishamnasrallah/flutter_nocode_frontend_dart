@@ -12,7 +12,8 @@ class ApiEndpoints {
   static const String me = '/api/auth/me/';
   static const String updateProfile = '/api/auth/update-profile/';
   static const String changePassword = '/api/auth/change-password/';
-
+static const String forgotPassword = '/api/auth/forgot-password/';
+static const String resetPassword = '/api/auth/reset-password/';
   // Application endpoints
   static const String applications = '/api/v1/applications/';
   static String applicationDetail(String id) => '/api/v1/applications/$id/';

@@ -1,6 +1,7 @@
 // lib/data/services/api_service.dart
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../core/constants/api_endpoints.dart';
 import 'storage_service.dart';
 
@@ -17,13 +18,17 @@ class ApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+      // Add validateStatus to accept any status code
+      validateStatus: (status) {
+        return status! < 500;
+      },
     ));
 
-    // Add cache interceptor
+    // Add cache interceptor with fixed options
     final cacheOptions = CacheOptions(
       store: MemCacheStore(),
       policy: CachePolicy.forceCache,
-      hitCacheOnErrorExcept: [401, 403],
+      // Remove: hitCacheOnErrorExcept: [401, 403], // This line is removed
       maxStale: const Duration(days: 7),
     );
     _dio.interceptors.add(DioCacheInterceptor(options: cacheOptions));

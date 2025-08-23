@@ -43,7 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // TODO: Show notifications
             },
           ),
-          PopupMenuButton(
+          PopupMenuButton<String>(
             icon: CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: const TextStyle(color: AppColors.primary),
               ),
             ),
-            itemBuilder: (context) => [
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
               PopupMenuItem(
                 child: const Text('Profile'),
                 onTap: () {
