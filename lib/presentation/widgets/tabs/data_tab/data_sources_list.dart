@@ -1,10 +1,11 @@
-// lib/presentation/applications/widgets/tabs/data_tab/data_sources_list.dart
+// lib/presentation/widgets/tabs/data_tab/data_sources_list.dart
 import 'package:flutter/material.dart';
 import '../../../../../data/models/data_source.dart';
 import '../../../../../data/repositories/data_source_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/utils/helpers.dart';
 import '../../dialogs/add_data_source_dialog.dart';
+import '../../dialogs/edit_data_source_dialog.dart'; // Add this import
 import '../../../utils/data_source_helpers.dart';
 
 class DataSourcesList extends StatelessWidget {
@@ -125,12 +126,61 @@ class DataSourcesList extends StatelessWidget {
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: () {
-                        // Edit data source
+                        // Now call the edit dialog
+                        showEditDataSourceDialog(
+                          context,
+                          dataSource,
+                          dataSourceRepository,
+                          onRefresh,
+                        );
                       },
                       icon: const Icon(Icons.edit, size: 16),
                       label: const Text('Edit'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final confirmed = await Helpers.showConfirmationDialog(
+                          context,
+                          title: 'Delete Data Source',
+                          message: 'Are you sure you want to delete "${dataSource.name}"?',
+                          confirmText: 'Delete',
+                          isDangerous: true,
+                        );
+
+                        if (confirmed) {
+                          try {
+                            await dataSourceRepository.deleteDataSource(
+                              dataSource.id.toString(),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Data source deleted'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                            onRefresh();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.delete, size: 16, color: AppColors.error),
+                      label: const Text(
+                        'Delete',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        side: const BorderSide(color: AppColors.error),
                       ),
                     ),
                   ],

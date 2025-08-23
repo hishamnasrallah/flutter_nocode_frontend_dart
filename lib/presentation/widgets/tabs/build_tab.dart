@@ -1,4 +1,4 @@
-// lib/presentation/applications/widgets/tabs/build_tab.dart
+// lib/presentation/widgets/tabs/build_tab.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../data/models/build_history.dart';
@@ -139,7 +139,7 @@ class BuildTab extends StatelessWidget {
         else
           ...List.generate(
             buildHistory.take(5).length,
-            (index) => BuildHistoryCard(build: buildHistory[index]),
+            (index) => BuildHistoryCard(buildHistory: buildHistory[index]), // Fixed: changed 'build' to 'buildHistory'
           ),
       ],
     );

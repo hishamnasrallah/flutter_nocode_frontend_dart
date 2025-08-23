@@ -1,13 +1,29 @@
-// lib/presentation/applications/widgets/tabs/data_tab/actions_list.dart
+// lib/presentation/widgets/tabs/data_tab/actions_list.dart
 import 'package:flutter/material.dart';
+import '../../../../../data/models/action.dart';
+import '../../../../../data/repositories/action_repository.dart';
+import '../../../../../data/repositories/screen_repository.dart';
+import '../../../../../data/repositories/data_source_repository.dart';
+import '../../dialogs/add_action_dialog.dart';
+import '../../dialogs/edit_action_dialog.dart';
 import '../../../utils/action_helpers.dart';
 
 class ActionsList extends StatelessWidget {
-  final List<dynamic> actions;
+  final List<AppAction> actions;
+  final VoidCallback onRefresh;
+  final ActionRepository actionRepository;
+  final ScreenRepository screenRepository;
+  final DataSourceRepository dataSourceRepository;
+  final String applicationId;
 
   const ActionsList({
     super.key,
     required this.actions,
+    required this.onRefresh,
+    required this.actionRepository,
+    required this.screenRepository,
+    required this.dataSourceRepository,
+    required this.applicationId,
   });
 
   @override
@@ -16,13 +32,16 @@ class ActionsList extends StatelessWidget {
       return _buildEmptyState(context);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: actions.length,
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        return _buildActionCard(action);
-      },
+    return RefreshIndicator(
+      onRefresh: () async => onRefresh(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: actions.length,
+        itemBuilder: (context, index) {
+          final action = actions[index];
+          return _buildActionCard(context, action);
+        },
+      ),
     );
   }
 
@@ -48,7 +67,14 @@ class ActionsList extends StatelessWidget {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              // Add action
+              showAddActionDialog(
+                context,
+                applicationId,
+                actionRepository,
+                screenRepository,
+                dataSourceRepository,
+                onRefresh,
+              );
             },
             icon: const Icon(Icons.add),
             label: const Text('Add Action'),
@@ -58,7 +84,7 @@ class ActionsList extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(Map<String, dynamic> action) {
+  Widget _buildActionCard(BuildContext context, AppAction action) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -66,30 +92,59 @@ class ActionsList extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: ActionHelpers.getActionColor(action['action_type']).withOpacity(0.1),
+            color: ActionHelpers.getActionColor(action.actionType).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            ActionHelpers.getActionIcon(action['action_type']),
-            color: ActionHelpers.getActionColor(action['action_type']),
+            ActionHelpers.getActionIcon(action.actionType),
+            color: ActionHelpers.getActionColor(action.actionType),
           ),
         ),
-        title: Text(action['name'] ?? 'Unnamed Action'),
+        title: Text(action.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Type: ${ActionHelpers.getActionTypeLabel(action['action_type'])}'),
-            if (action['target_screen_name'] != null)
-              Text('Target: ${action['target_screen_name']}'),
-            if (action['api_data_source_name'] != null)
-              Text('Data Source: ${action['api_data_source_name']}'),
+            Text('Type: ${ActionHelpers.getActionTypeLabel(action.actionType)}'),
+            if (action.targetScreenName != null)
+              Text('Target: ${action.targetScreenName}'),
+            if (action.apiDataSourceName != null)
+              Text('Data Source: ${action.apiDataSourceName}'),
+            if (action.url != null)
+              Text('URL: ${action.url}'),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () {
-            // Edit action
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                showEditActionDialog(
+                  context,
+                  action,
+                  applicationId,
+                  actionRepository,
+                  screenRepository,
+                  dataSourceRepository,
+                  onRefresh,
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                showAddActionDialog(
+                  context,
+                  applicationId,
+                  actionRepository,
+                  screenRepository,
+                  dataSourceRepository,
+                  onRefresh,
+                );
+              },
+              tooltip: 'Add New Action',
+            ),
+          ],
         ),
       ),
     );

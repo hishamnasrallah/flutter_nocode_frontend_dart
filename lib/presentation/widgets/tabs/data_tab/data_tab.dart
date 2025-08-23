@@ -1,17 +1,24 @@
-// lib/presentation/applications/widgets/tabs/data_tab/data_tab.dart
+// lib/presentation/widgets/tabs/data_tab/data_tab.dart
 import 'package:flutter/material.dart';
 import '../../../../../data/models/data_source.dart';
+import '../../../../../data/models/action.dart';
 import '../../../../../data/repositories/data_source_repository.dart';
+import '../../../../../data/repositories/action_repository.dart';
+import '../../../../../data/repositories/screen_repository.dart';
 import 'data_sources_list.dart';
 import 'actions_list.dart';
 
 class DataTab extends StatelessWidget {
   final dynamic application;
   final List<DataSource> dataSources;
-  final List<dynamic> actions;
+  final List<AppAction> actions;
   final bool isLoadingDataSources;
+  final bool isLoadingActions;
   final VoidCallback onRefreshDataSources;
+  final VoidCallback onRefreshActions;
   final DataSourceRepository dataSourceRepository;
+  final ActionRepository actionRepository;
+  final ScreenRepository screenRepository; // Add this
 
   const DataTab({
     super.key,
@@ -19,16 +26,16 @@ class DataTab extends StatelessWidget {
     required this.dataSources,
     required this.actions,
     required this.isLoadingDataSources,
+    required this.isLoadingActions,
     required this.onRefreshDataSources,
+    required this.onRefreshActions,
     required this.dataSourceRepository,
+    required this.actionRepository,
+    required this.screenRepository, // Add this
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isLoadingDataSources) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return DefaultTabController(
       length: 2,
       child: Column(
@@ -47,9 +54,16 @@ class DataTab extends StatelessWidget {
                   onRefresh: onRefreshDataSources,
                   dataSourceRepository: dataSourceRepository,
                 ),
-                ActionsList(
-                  actions: actions,
-                ),
+                isLoadingActions
+                  ? const Center(child: CircularProgressIndicator())
+                  : ActionsList(
+                      actions: actions,
+                      onRefresh: onRefreshActions,
+                      actionRepository: actionRepository,
+                      screenRepository: screenRepository,
+                      dataSourceRepository: dataSourceRepository,
+                      applicationId: application.id.toString(),
+                    ),
               ],
             ),
           ),

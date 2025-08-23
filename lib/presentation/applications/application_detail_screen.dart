@@ -7,9 +7,11 @@ import '../../providers/builder_provider.dart';
 import '../../data/models/screen.dart';
 import '../../data/models/build_history.dart';
 import '../../data/models/data_source.dart';
+import '../../data/models/action.dart'; // Add this import
 import '../../data/repositories/application_repository.dart';
 import '../../data/repositories/screen_repository.dart';
 import '../../data/repositories/data_source_repository.dart';
+import '../../data/repositories/action_repository.dart'; // Add this import
 import '../../data/services/api_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../core/constants/app_colors.dart';
@@ -39,14 +41,16 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   late ApplicationRepository _applicationRepository;
   late ScreenRepository _screenRepository;
   late DataSourceRepository _dataSourceRepository;
+  late ActionRepository _actionRepository; // Add this
 
   List<Screen> _screens = [];
   List<BuildHistory> _buildHistory = [];
   List<DataSource> _dataSources = [];
-  List<dynamic> _actions = [];
+  List<AppAction> _actions = []; // Change from dynamic to AppAction
   bool _isLoadingScreens = false;
   bool _isLoadingBuilds = false;
   bool _isLoadingDataSources = false;
+  bool _isLoadingActions = false; // Add this
 
   @override
   void initState() {
@@ -59,6 +63,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     _applicationRepository = ApplicationRepository(apiService);
     _screenRepository = ScreenRepository(apiService);
     _dataSourceRepository = DataSourceRepository(apiService);
+    _actionRepository = ActionRepository(apiService); // Add this
 
     _loadApplicationDetails();
     _tabController.addListener(_handleTabChange);
@@ -76,6 +81,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
           if (_dataSources.isEmpty && !_isLoadingDataSources) {
             _loadDataSources();
           }
+          if (_actions.isEmpty && !_isLoadingActions) {
+            _loadActions(); // Add this
+          }
           break;
         case 3: // Build tab
           if (_buildHistory.isEmpty && !_isLoadingBuilds) {
@@ -90,16 +98,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     final provider = context.read<ApplicationProvider>();
     await provider.fetchApplicationDetail(widget.applicationId);
 
-    // Extract actions from the application data if available
+    // Statistics might contain some action info, but we'll load actions separately
     if (provider.selectedApplication != null) {
-      _extractActionsFromStatistics(provider.statistics);
+      // Optional: extract any action info from statistics if needed
     }
-  }
-
-  void _extractActionsFromStatistics(Map<String, dynamic>? statistics) {
-    setState(() {
-      _actions = statistics?['actions'] ?? [];
-    });
   }
 
   Future<void> _loadScreens() async {
@@ -186,6 +188,40 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     }
   }
 
+  // Add this new method
+  Future<void> _loadActions() async {
+    setState(() {
+      _isLoadingActions = true;
+    });
+
+    try {
+      debugPrint('⚡ Loading actions for application: ${widget.applicationId}');
+      final actions = await _actionRepository.getActions(
+        applicationId: widget.applicationId,
+      );
+      debugPrint('⚡ Successfully loaded ${actions.length} actions');
+
+      setState(() {
+        _actions = actions;
+        _isLoadingActions = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading actions: $e');
+      setState(() {
+        _isLoadingActions = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load actions: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ApplicationProvider>();
@@ -225,8 +261,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             dataSources: _dataSources,
             actions: _actions,
             isLoadingDataSources: _isLoadingDataSources,
+            isLoadingActions: _isLoadingActions,
             onRefreshDataSources: _loadDataSources,
+            onRefreshActions: _loadActions,
             dataSourceRepository: _dataSourceRepository,
+            actionRepository: _actionRepository,
+            screenRepository: _screenRepository, // Add this line
           ),
           BuildTab(
             application: app,
