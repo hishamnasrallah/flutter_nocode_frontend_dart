@@ -31,14 +31,23 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
+
+      debugPrint('Starting login process...');
+
       final success = await authProvider.login(
         _usernameController.text.trim(),
         _passwordController.text,
       );
 
+      debugPrint('Login result: $success');
+      debugPrint('Is authenticated after login: ${authProvider.isAuthenticated}');
+
       if (success && mounted) {
+        debugPrint('Login successful, navigating to dashboard...');
+        // Force navigation to dashboard
         context.go('/dashboard');
       } else if (mounted) {
+        debugPrint('Login failed: ${authProvider.error}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.error ?? 'Login failed'),
@@ -51,6 +60,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if already authenticated
+    final authProvider = context.watch<AuthProvider>();
+    if (authProvider.isAuthenticated && authProvider.isInitialized) {
+      // Already authenticated, go to dashboard
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/dashboard');
+      });
+    }
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -183,6 +201,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
+
+                      // Debug info (remove in production)
+                      if (authProvider.error != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Error: ${authProvider.error}',
+                            style: TextStyle(color: Colors.red[900], fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

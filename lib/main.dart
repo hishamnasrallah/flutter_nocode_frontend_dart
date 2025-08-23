@@ -1,7 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'providers/application_provider.dart';
@@ -12,6 +11,9 @@ import 'data/services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize storage service
+  await StorageService.init();
 
   // Initialize services
   final storageService = StorageService();
@@ -37,6 +39,3 @@ void main() async {
     ),
   );
 }
-
-
-

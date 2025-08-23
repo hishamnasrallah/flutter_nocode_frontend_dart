@@ -68,40 +68,49 @@ class ApplicationProvider extends ChangeNotifier {
   }
 
   Future<Application?> createApplication({
-    required String name,
-    required String packageName,
-    required String description,
-    required int themeId,
-    String version = '1.0.0',
-  }) async {
-    _isLoading = true;
-    _error = null;
+  required String name,
+  required String packageName,
+  required String description,
+  required int themeId,
+  String version = '1.0.0',
+}) async {
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
+
+  try {
+    debugPrint('Creating application with theme ID: $themeId');
+
+    final response = await _apiService.post(
+      ApiEndpoints.applications,
+      data: {
+        'name': name,
+        'package_name': packageName,
+        'description': description,
+        'theme_id': themeId,
+        'version': version,
+      },
+    );
+
+    debugPrint('Application created, parsing response...');
+    debugPrint('Response data: ${response.data}');
+
+    final application = Application.fromJson(response.data);
+    debugPrint('Application parsed successfully: ${application.name}');
+
+    _applications.insert(0, application);
+    _isLoading = false;
     notifyListeners();
-
-    try {
-      final response = await _apiService.post(
-        ApiEndpoints.applications,
-        data: {
-          'name': name,
-          'package_name': packageName,
-          'description': description,
-          'theme_id': themeId,
-          'version': version,
-        },
-      );
-
-      final application = Application.fromJson(response.data);
-      _applications.insert(0, application);
-      _isLoading = false;
-      notifyListeners();
-      return application;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return null;
-    }
+    return application;
+  } catch (e, stackTrace) {
+    debugPrint('Error creating application: $e');
+    debugPrint('Stack trace: $stackTrace');
+    _error = e.toString();
+    _isLoading = false;
+    notifyListeners();
+    return null;
   }
+}
 
   Future<bool> updateApplication(String id, Map<String, dynamic> data) async {
     _isLoading = true;

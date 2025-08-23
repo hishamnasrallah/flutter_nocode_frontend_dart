@@ -30,8 +30,10 @@ class ThemeProvider extends ChangeNotifier {
       final response = await _apiService.get(ApiEndpoints.themes);
       final List<dynamic> data = response.data['results'] ?? response.data;
       _themes = data.map((json) => AppTheme.fromJson(json)).toList();
+      debugPrint('Fetched ${_themes.length} themes');
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error fetching themes: $_error');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -45,6 +47,7 @@ class ThemeProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Templates are optional
+      debugPrint('Error fetching theme templates: $e');
     }
   }
 
@@ -78,6 +81,8 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('Creating theme: $name');
+
       final response = await _apiService.post(
         ApiEndpoints.themes,
         data: {
@@ -91,14 +96,22 @@ class ThemeProvider extends ChangeNotifier {
         },
       );
 
+      debugPrint('Theme created successfully: ${response.data}');
+
       final theme = AppTheme.fromJson(response.data);
+
+      // Add the new theme to the list
       _themes.insert(0, theme);
+
+      // Refresh the themes list to ensure consistency
+      await fetchThemes();
 
       _isLoading = false;
       notifyListeners();
       return theme;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error creating theme: $_error');
       _isLoading = false;
       notifyListeners();
       return null;
@@ -179,6 +192,15 @@ class ThemeProvider extends ChangeNotifier {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
+      return null;
+    }
+  }
+
+  // Helper method to get theme by ID
+  AppTheme? getThemeById(int id) {
+    try {
+      return _themes.firstWhere((theme) => theme.id == id);
+    } catch (e) {
       return null;
     }
   }

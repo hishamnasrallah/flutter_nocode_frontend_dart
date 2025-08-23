@@ -8,20 +8,25 @@ part 'user.g.dart';
 class User extends Equatable {
   final int id;
   final String username;
+  @JsonKey(defaultValue: '')
   final String email;
-  final String? firstName;
-  final String? lastName;
+  @JsonKey(name: 'first_name', defaultValue: '')
+  final String firstName;
+  @JsonKey(name: 'last_name', defaultValue: '')
+  final String lastName;
+  @JsonKey(name: 'date_joined')
   final DateTime dateJoined;
+  @JsonKey(name: 'is_active', defaultValue: true)
   final bool isActive;
 
   const User({
     required this.id,
     required this.username,
-    required this.email,
-    this.firstName,
-    this.lastName,
+    this.email = '',
+    this.firstName = '',
+    this.lastName = '',
     required this.dateJoined,
-    required this.isActive,
+    this.isActive = true,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
@@ -30,15 +35,3 @@ class User extends Equatable {
   @override
   List<Object?> get props => [id, username, email, firstName, lastName, dateJoined, isActive];
 }
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,5 +1,6 @@
 // lib/presentation/applications/create_application_screen.dart
 import '../../data/models/application.dart';
+import '../../data/models/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -394,258 +395,480 @@ class _CreateApplicationScreenState extends State<CreateApplicationScreen> {
   }
 
   Widget _buildThemeStep() {
-    final themeProvider = context.watch<ThemeProvider>();
+  final themeProvider = context.watch<ThemeProvider>();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Choose a Theme',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Choose a Theme',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Select a color theme for your application',
-            style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select a color theme for your application',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 24),
+
+        // Create new theme button
+        Card(
+          child: ListTile(
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue, Colors.purple],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+            title: const Text('Create New Theme'),
+            subtitle: const Text('Design a custom theme for your app'),
+            trailing: const Icon(Icons.arrow_forward),
+            onTap: () {
+              _showCreateThemeDialog(context);
+            },
           ),
-          const SizedBox(height: 24),
+        ),
+        const SizedBox(height: 24),
 
-          // Theme templates
-          if (themeProvider.themeTemplates.isNotEmpty) ...[
-            Text(
-              'Theme Templates',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.5,
-              ),
-              itemCount: themeProvider.themeTemplates.length,
-              itemBuilder: (context, index) {
-                final template = themeProvider.themeTemplates[index];
-                final primaryColor = Color(int.parse(
-                  template['primary_color'].replaceAll('#', '0xFF'),
-                ));
-                final accentColor = Color(int.parse(
-                  template['accent_color'].replaceAll('#', '0xFF'),
-                ));
-
-                return Card(
-                  child: InkWell(
-                    onTap: () {
-                      // Create theme from template
-                      // TODO: Implement theme creation from template
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [primaryColor, accentColor],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            template['name'],
-                            style: const TextStyle(fontSize: 12),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          // Existing themes
+        // Theme templates
+        if (themeProvider.themeTemplates.isNotEmpty) ...[
           Text(
-            'My Themes',
+            'Theme Templates',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
-          if (themeProvider.themes.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(Icons.palette_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No themes available',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      context.push('/themes/create');
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Theme'),
-                  ),
-                ],
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: themeProvider.themes.length,
-              itemBuilder: (context, index) {
-                final theme = themeProvider.themes[index];
-                final isSelected = _selectedThemeId == theme.id;
-                final primaryColor = Color(int.parse(
-                  theme.primaryColor.replaceAll('#', '0xFF'),
-                ));
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.5,
+            ),
+            itemCount: themeProvider.themeTemplates.length,
+            itemBuilder: (context, index) {
+              final template = themeProvider.themeTemplates[index];
+              final primaryColor = Color(int.parse(
+                template['primary_color'].replaceAll('#', '0xFF'),
+              ));
+              final accentColor = Color(int.parse(
+                template['accent_color'].replaceAll('#', '0xFF'),
+              ));
 
-                return Card(
-                  elevation: isSelected ? 4 : 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primary : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    title: Text(theme.name),
-                    subtitle: Text(theme.isDarkMode ? 'Dark Theme' : 'Light Theme'),
-                    trailing: Radio<int>(
-                      value: theme.id,
-                      groupValue: _selectedThemeId,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedThemeId = value;
-                        });
-                      },
-                    ),
-                    onTap: () {
+              return Card(
+                child: InkWell(
+                  onTap: () async {
+                    // Create theme from template
+                    final theme = await themeProvider.createTheme(
+                      name: '${template['name']} (Custom)',
+                      primaryColor: template['primary_color'],
+                      accentColor: template['accent_color'],
+                      backgroundColor: template['background_color'],
+                      textColor: template['text_color'],
+                      fontFamily: template['font_family'] ?? 'Roboto',
+                      isDarkMode: template['is_dark_mode'] ?? false,
+                    );
+                    if (theme != null) {
                       setState(() {
                         _selectedThemeId = theme.id;
                       });
-                    },
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Theme created and selected'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [primaryColor, accentColor],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          template['name'],
+                          style: const TextStyle(fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
         ],
-      ),
-    );
-  }
 
-  Widget _buildReviewStep() {
-    final selectedTemplate = _templates.firstWhere(
-      (t) => t['id'] == _selectedTemplate,
-      orElse: () => _templates.first,
-    );
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Review & Create',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+        // Existing themes
+        Text(
+          'My Themes',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Review your application details before creating',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 24),
-
-          // Summary card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildReviewItem('Template', selectedTemplate['name']),
-                  const Divider(),
-                  _buildReviewItem('Name', _nameController.text),
-                  const Divider(),
-                  _buildReviewItem('Package', _packageNameController.text),
-                  const Divider(),
-                  _buildReviewItem('Description', _descriptionController.text),
-                  const Divider(),
-                  _buildReviewItem('Version', _versionController.text),
-                  const Divider(),
-                  _buildReviewItem(
-                    'Theme',
-                    _selectedThemeId != null
-                        ? context.read<ThemeProvider>().themes
-                            .firstWhere((t) => t.id == _selectedThemeId)
-                            .name
-                        : 'Default Theme',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Info box
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.info.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.info),
-            ),
-            child: Row(
+        ),
+        const SizedBox(height: 16),
+        if (themeProvider.themes.isEmpty)
+          Center(
+            child: Column(
               children: [
-                Icon(Icons.info_outline, color: AppColors.info),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Your application will be created with the selected template and theme. You can customize it further in the builder.',
-                    style: TextStyle(color: AppColors.info),
-                  ),
+                Icon(Icons.palette_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No themes available',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create a new theme or use a template above',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
               ],
             ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: themeProvider.themes.length,
+            itemBuilder: (context, index) {
+              final theme = themeProvider.themes[index];
+              final isSelected = _selectedThemeId == theme.id;
+              final primaryColor = Color(int.parse(
+                theme.primaryColor.replaceAll('#', '0xFF'),
+              ));
+
+              return Card(
+                elevation: isSelected ? 4 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: ListTile(
+                  leading: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  title: Text(theme.name),
+                  subtitle: Text(theme.isDarkMode ? 'Dark Theme' : 'Light Theme'),
+                  trailing: Radio<int>(
+                    value: theme.id,
+                    groupValue: _selectedThemeId,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedThemeId = value;
+                      });
+                    },
+                  ),
+                  onTap: () {
+                    setState(() {
+                      _selectedThemeId = theme.id;
+                    });
+                  },
+                ),
+              );
+            },
+          ),
+
+        // Option to skip theme selection
+        const SizedBox(height: 16),
+        Card(
+          color: Colors.grey[100],
+          child: ListTile(
+            leading: Radio<int>(
+              value: -1,
+              groupValue: _selectedThemeId,
+              onChanged: (value) {
+                setState(() {
+                  _selectedThemeId = -1; // Use default theme
+                });
+              },
+            ),
+            title: const Text('Use Default Theme'),
+            subtitle: const Text('You can change the theme later'),
+            onTap: () {
+              setState(() {
+                _selectedThemeId = -1;
+              });
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Add this method to the class:
+void _showCreateThemeDialog(BuildContext context) {
+  final nameController = TextEditingController();
+  Color primaryColor = AppColors.primary;
+  Color accentColor = AppColors.accent;
+  Color backgroundColor = Colors.white;
+  Color textColor = AppColors.textPrimary;
+  bool isDarkMode = false;
+
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Create New Theme'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Theme Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Simple color selection
+              ListTile(
+                title: const Text('Primary Color'),
+                trailing: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey),
+                  ),
+                ),
+                onTap: () async {
+                  // Simple color selection
+                  final color = await showDialog<Color>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Select Primary Color'),
+                      content: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          Colors.blue,
+                          Colors.red,
+                          Colors.green,
+                          Colors.purple,
+                          Colors.orange,
+                          Colors.teal,
+                          Colors.pink,
+                          Colors.indigo,
+                          Colors.cyan,
+                        ].map((color) => InkWell(
+                          onTap: () => Navigator.pop(context, color),
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+                  );
+                  if (color != null) {
+                    setDialogState(() {
+                      primaryColor = color;
+                    });
+                  }
+                },
+              ),
+              CheckboxListTile(
+                title: const Text('Dark Mode'),
+                value: isDarkMode,
+                onChanged: (value) {
+                  setDialogState(() {
+                    isDarkMode = value ?? false;
+                    backgroundColor = isDarkMode ? Colors.grey[900]! : Colors.white;
+                    textColor = isDarkMode ? Colors.white : Colors.black87;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a theme name'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              final provider = context.read<ThemeProvider>();
+              final theme = await provider.createTheme(
+                name: nameController.text,
+                primaryColor: '#${primaryColor.value.toRadixString(16).substring(2)}',
+                accentColor: '#${accentColor.value.toRadixString(16).substring(2)}',
+                backgroundColor: '#${backgroundColor.value.toRadixString(16).substring(2)}',
+                textColor: '#${textColor.value.toRadixString(16).substring(2)}',
+                isDarkMode: isDarkMode,
+              );
+
+              if (theme != null) {
+                setState(() {
+                  _selectedThemeId = theme.id;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Theme created and selected'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              }
+            },
+            child: const Text('Create'),
           ),
         ],
       ),
+    ),
+  );
+}
+
+
+  Widget _buildReviewStep() {
+  final selectedTemplate = _templates.firstWhere(
+    (t) => t['id'] == _selectedTemplate,
+    orElse: () => _templates.first,
+  );
+
+  // Get the selected theme name safely
+  String themeName = 'Default Theme';
+  if (_selectedThemeId != null && _selectedThemeId != -1) {
+    final themeProvider = context.read<ThemeProvider>();
+    final theme = themeProvider.themes.firstWhere(
+      (t) => t.id == _selectedThemeId,
+      orElse: () => themeProvider.themes.isNotEmpty
+        ? themeProvider.themes.first
+        : AppTheme(
+            id: -1,
+            name: 'Default Theme',
+            primaryColor: '#2196F3',
+            accentColor: '#FF4081',
+            backgroundColor: '#FFFFFF',
+            textColor: '#212121',
+            fontFamily: 'Roboto',
+            isDarkMode: false,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
     );
+    themeName = theme.name;
   }
+
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Review & Create',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Review your application details before creating',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 24),
+
+        // Summary card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildReviewItem('Template', selectedTemplate['name']),
+                const Divider(),
+                _buildReviewItem('Name', _nameController.text),
+                const Divider(),
+                _buildReviewItem('Package', _packageNameController.text),
+                const Divider(),
+                _buildReviewItem('Description', _descriptionController.text),
+                const Divider(),
+                _buildReviewItem('Version', _versionController.text),
+                const Divider(),
+                _buildReviewItem('Theme', themeName),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Info box
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.info),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.info),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Your application will be created with the selected template and theme. You can customize it further in the builder.',
+                  style: TextStyle(color: AppColors.info),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildReviewItem(String label, String value) {
     return Padding(
@@ -675,130 +898,134 @@ class _CreateApplicationScreenState extends State<CreateApplicationScreen> {
   }
 
   Widget _buildNavigationButtons() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (_currentStep > 0)
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {
-                  _pageController.previousPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: const Text('Previous'),
-              ),
-            ),
-          if (_currentStep > 0) const SizedBox(width: 16),
+  return Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, -2),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        if (_currentStep > 0)
           Expanded(
-            child: Consumer<ApplicationProvider>(
-              builder: (context, provider, _) {
-                return ElevatedButton(
-                  onPressed: provider.isLoading
-                      ? null
-                      : () {
-                          if (_currentStep < 3) {
-                            // Validate current step
-                            if (_currentStep == 0 && _selectedTemplate == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please select a template'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                              return;
-                            }
-                            if (_currentStep == 1 && !_formKey.currentState!.validate()) {
-                              return;
-                            }
-                            if (_currentStep == 2 && _selectedThemeId == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please select a theme'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                              return;
-                            }
-
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          } else {
-                            _createApplication();
-                          }
-                        },
-                  child: provider.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(_currentStep < 3 ? 'Next' : 'Create Application'),
+            child: OutlinedButton(
+              onPressed: () {
+                _pageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
                 );
               },
+              child: const Text('Previous'),
             ),
           ),
-        ],
-      ),
+        if (_currentStep > 0) const SizedBox(width: 16),
+        Expanded(
+          child: Consumer<ApplicationProvider>(
+            builder: (context, provider, _) {
+              return ElevatedButton(
+                onPressed: provider.isLoading
+                    ? null
+                    : () {
+                        if (_currentStep < 3) {
+                          // Validate current step
+                          if (_currentStep == 0 && _selectedTemplate == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select a template'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+                          if (_currentStep == 1 && !_formKey.currentState!.validate()) {
+                            return;
+                          }
+                          if (_currentStep == 2) {
+                            // Allow proceeding with default theme if none selected
+                            if (_selectedThemeId == null) {
+                              setState(() {
+                                _selectedThemeId = -1; // Use default theme
+                              });
+                            }
+                          }
+
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        } else {
+                          _createApplication();
+                        }
+                      },
+                child: provider.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(_currentStep < 3 ? 'Next' : 'Create Application'),
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Future<void> _createApplication() async {
+  final provider = context.read<ApplicationProvider>();
+
+  Application? app;
+  if (_selectedTemplate != null && _selectedTemplate != 'blank') {
+    // Create from template
+    app = await provider.createFromTemplate(
+      _selectedTemplate!,
+      _nameController.text,
+      _packageNameController.text,
+    );
+  } else {
+    // Create blank application
+    // Use a default theme ID if none selected
+    final themeId = _selectedThemeId == -1 ? 1 : _selectedThemeId;
+
+    app = await provider.createApplication(
+      name: _nameController.text,
+      packageName: _packageNameController.text,
+      description: _descriptionController.text,
+      themeId: themeId!,
+      version: _versionController.text,
     );
   }
 
-  Future<void> _createApplication() async {
-    final provider = context.read<ApplicationProvider>();
-
-    Application? app;
-    if (_selectedTemplate != 'blank') {
-      // Create from template
-      app = await provider.createFromTemplate(
-        _selectedTemplate!,
-        _nameController.text,
-        _packageNameController.text,
-      );
-    } else {
-      // Create blank application
-      app = await provider.createApplication(
-        name: _nameController.text,
-        packageName: _packageNameController.text,
-        description: _descriptionController.text,
-        themeId: _selectedThemeId!,
-        version: _versionController.text,
-      );
-    }
-
-    if (app != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Application created successfully!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      context.go('/applications/${app.id}');
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Failed to create application'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+  if (app != null && mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Application created successfully!'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+    // Convert id to string for navigation
+    context.go('/applications/${app.id.toString()}');  // Add .toString() here
+  } else if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(provider.error ?? 'Failed to create application'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
+}
+
 
   @override
   void dispose() {

@@ -61,28 +61,53 @@ class FlutterNoCodeApp extends StatelessWidget {
         fillColor: Colors.grey[50],
       ),
       cardTheme: CardThemeData(
-  elevation: 2,
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(12),
-  ),
-),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 
   GoRouter _router(AuthProvider authProvider) {
     return GoRouter(
-      initialLocation: authProvider.isAuthenticated ? '/dashboard' : '/login',
+      initialLocation: '/login',
+      debugLogDiagnostics: true, // Enable debug logging
+      refreshListenable: authProvider,
       redirect: (context, state) {
         final isAuthenticated = authProvider.isAuthenticated;
+        final isLoading = authProvider.isLoading;
+        final isInitialized = authProvider.isInitialized;
         final isAuthRoute = state.matchedLocation == '/login' ||
                            state.matchedLocation == '/register';
 
+        // Debug logging
+        debugPrint('=== Router Redirect ===');
+        debugPrint('Current location: ${state.matchedLocation}');
+        debugPrint('Is authenticated: $isAuthenticated');
+        debugPrint('Is loading: $isLoading');
+        debugPrint('Is initialized: $isInitialized');
+        debugPrint('Is auth route: $isAuthRoute');
+
+        // Don't redirect while loading
+        if (!isInitialized) {
+          debugPrint('Not initialized yet, no redirect');
+          return null;
+        }
+
+        // If not authenticated and trying to access protected route
         if (!isAuthenticated && !isAuthRoute) {
+          debugPrint('Not authenticated, redirecting to login');
           return '/login';
         }
+
+        // If authenticated and on auth route, go to dashboard
         if (isAuthenticated && isAuthRoute) {
+          debugPrint('Authenticated, redirecting to dashboard');
           return '/dashboard';
         }
+
+        debugPrint('No redirect needed');
         return null;
       },
       routes: [
