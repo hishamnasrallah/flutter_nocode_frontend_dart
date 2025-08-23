@@ -7,8 +7,10 @@ import '../../providers/application_provider.dart';
 import '../../providers/builder_provider.dart';
 import '../../data/models/screen.dart';
 import '../../data/models/build_history.dart';
+import '../../data/models/data_source.dart';
 import '../../data/repositories/application_repository.dart';
 import '../../data/repositories/screen_repository.dart';
+import '../../data/repositories/data_source_repository.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../core/constants/app_colors.dart';
@@ -29,10 +31,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   late TabController _tabController;
   late ApplicationRepository _applicationRepository;
   late ScreenRepository _screenRepository;
+  late DataSourceRepository _dataSourceRepository;
 
   List<Screen> _screens = [];
   List<BuildHistory> _buildHistory = [];
-  List<Map<String, dynamic>> _dataSources = [];
+  List<DataSource> _dataSources = [];
+  List<dynamic> _actions = [];
   bool _isLoadingScreens = false;
   bool _isLoadingBuilds = false;
   bool _isLoadingDataSources = false;
@@ -47,6 +51,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     final apiService = ApiService(storageService);
     _applicationRepository = ApplicationRepository(apiService);
     _screenRepository = ScreenRepository(apiService);
+    _dataSourceRepository = DataSourceRepository(apiService);
 
     _loadApplicationDetails();
     _tabController.addListener(_handleTabChange);
@@ -77,40 +82,53 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   Future<void> _loadApplicationDetails() async {
     final provider = context.read<ApplicationProvider>();
     await provider.fetchApplicationDetail(widget.applicationId);
+
+    // Extract actions from the application data if available
+    if (provider.selectedApplication != null) {
+      _extractActionsFromStatistics(provider.statistics);
+    }
+  }
+
+  void _extractActionsFromStatistics(Map<String, dynamic>? statistics) {
+    // Actions might be in the statistics or in the application detail response
+    // Based on your console log, it seems actions are coming with the application detail
+    // You might need to adjust this based on your actual API response structure
+    setState(() {
+      _actions = statistics?['actions'] ?? [];
+    });
   }
 
   Future<void> _loadScreens() async {
-  setState(() {
-    _isLoadingScreens = true;
-  });
-
-  try {
-    debugPrint('📱 Loading screens for application: ${widget.applicationId}');
-    final screens = await _screenRepository.getScreens(applicationId: widget.applicationId);
-    debugPrint('📱 Successfully loaded ${screens.length} screens');
-
     setState(() {
-      _screens = screens;
-      _isLoadingScreens = false;
-    });
-  } catch (e, stackTrace) {
-    debugPrint('❌ Error loading screens: $e');
-    debugPrint('❌ Stack trace: $stackTrace');
-    setState(() {
-      _isLoadingScreens = false;
+      _isLoadingScreens = true;
     });
 
-    // Show error to user
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load screens: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    try {
+      debugPrint('📱 Loading screens for application: ${widget.applicationId}');
+      final screens = await _screenRepository.getScreens(applicationId: widget.applicationId);
+      debugPrint('📱 Successfully loaded ${screens.length} screens');
+
+      setState(() {
+        _screens = screens;
+        _isLoadingScreens = false;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading screens: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      setState(() {
+        _isLoadingScreens = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load screens: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
 
   Future<void> _loadBuildHistory() async {
     setState(() {
@@ -137,18 +155,30 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     });
 
     try {
-      // TODO: Implement data sources API call when endpoint is available
-      // For now, using mock data
-      await Future.delayed(const Duration(seconds: 1));
+      debugPrint('📊 Loading data sources for application: ${widget.applicationId}');
+      final dataSources = await _dataSourceRepository.getDataSources(
+        applicationId: widget.applicationId,
+      );
+      debugPrint('📊 Successfully loaded ${dataSources.length} data sources');
+
       setState(() {
-        _dataSources = [];
+        _dataSources = dataSources;
         _isLoadingDataSources = false;
       });
     } catch (e) {
-      debugPrint('Error loading data sources: $e');
+      debugPrint('❌ Error loading data sources: $e');
       setState(() {
         _isLoadingDataSources = false;
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load data sources: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -262,7 +292,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                 onTap: () async {
                   final data = await provider.exportApplicationJson(app.id.toString());
                   if (data != null) {
-                    // TODO: Download JSON file
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Application exported')),
                     );
@@ -414,25 +443,29 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
               children: [
                 _buildStatCard(
                   'Screens',
-                  statistics['screens']?['total']?.toString() ?? '0',
+                  statistics['screens']?['total']?.toString() ??
+                  statistics['screens_count']?.toString() ?? '0',
                   Icons.phone_android,
                   AppColors.primary,
                 ),
                 _buildStatCard(
                   'Widgets',
-                  statistics['widgets']?['total']?.toString() ?? '0',
+                  statistics['widgets']?['total']?.toString() ??
+                  statistics['widgets_count']?.toString() ?? '0',
                   Icons.widgets,
                   AppColors.accent,
                 ),
                 _buildStatCard(
                   'Data Sources',
-                  statistics['data_sources']?['total']?.toString() ?? '0',
+                  statistics['data_sources']?['total']?.toString() ??
+                  statistics['data_sources_count']?.toString() ?? '0',
                   Icons.storage,
                   AppColors.info,
                 ),
                 _buildStatCard(
                   'Actions',
-                  statistics['actions']?['total']?.toString() ?? '0',
+                  statistics['actions']?['total']?.toString() ??
+                  statistics['actions_count']?.toString() ?? '0',
                   Icons.flash_on,
                   AppColors.warning,
                 ),
@@ -440,7 +473,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             ),
             const SizedBox(height: 24),
 
-            // Widget distribution chart
+            // Widget distribution chart (if available)
             if (statistics['widgets']?['by_type'] != null) ...[
               Text(
                 'Widget Distribution',
@@ -558,7 +591,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                     icon: const Icon(Icons.edit),
                     onPressed: () {
                       context.push('/applications/${app.id}/builder');
-                      // TODO: Navigate to specific screen in builder
                     },
                   ),
                 ],
@@ -575,6 +607,33 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
+    // Build comprehensive data view with data sources and actions
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: 'Data Sources'),
+              Tab(text: 'Actions'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // Data Sources Tab
+                _buildDataSourcesList(),
+                // Actions Tab
+                _buildActionsList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataSourcesList() {
     if (_dataSources.isEmpty) {
       return Center(
         child: Column(
@@ -597,7 +656,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Navigate to data sources
+                _showAddDataSourceDialog();
               },
               icon: const Icon(Icons.add),
               label: const Text('Add Data Source'),
@@ -607,9 +666,200 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       );
     }
 
-    // TODO: Display data sources when available
-    return const Center(
-      child: Text('Data sources will be displayed here'),
+    return RefreshIndicator(
+      onRefresh: _loadDataSources,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _dataSources.length,
+        itemBuilder: (context, index) {
+          final dataSource = _dataSources[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getDataSourceColor(dataSource.dataSourceType).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getDataSourceIcon(dataSource.dataSourceType),
+                  color: _getDataSourceColor(dataSource.dataSourceType),
+                ),
+              ),
+              title: Text(dataSource.name),
+              subtitle: Text(dataSource.dataSourceType.toUpperCase()),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (dataSource.baseUrl != null) ...[
+                        _buildDetailRow('Base URL', dataSource.baseUrl!),
+                        const SizedBox(height: 8),
+                      ],
+                      if (dataSource.endpoint != null) ...[
+                        _buildDetailRow('Endpoint', dataSource.endpoint!),
+                        const SizedBox(height: 8),
+                      ],
+                      _buildDetailRow('Method', dataSource.method),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Dynamic URL', dataSource.useDynamicBaseUrl ? 'Yes' : 'No'),
+                      if (dataSource.fieldsCount != null) ...[
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Fields', '${dataSource.fieldsCount} fields'),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              await _testDataSourceConnection(dataSource);
+                            },
+                            icon: const Icon(Icons.wifi_tethering, size: 16),
+                            label: const Text('Test Connection'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              // Edit data source
+                            },
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Edit'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildActionsList() {
+    final provider = context.watch<ApplicationProvider>();
+
+    // Try to get actions from various possible locations in the response
+    List<dynamic> actions = [];
+
+    // Check if actions are in statistics
+    if (provider.statistics?['actions'] is List) {
+      actions = provider.statistics!['actions'] as List;
+    }
+    // Check if actions are in a different location
+    else if (provider.selectedApplication != null) {
+      // Actions might be embedded in the application response
+      // You might need to adjust this based on your actual API structure
+    }
+
+    if (actions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.flash_on, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No actions configured',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add actions to handle user interactions',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Add action
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Action'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: actions.length,
+      itemBuilder: (context, index) {
+        final action = actions[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _getActionColor(action['action_type']).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getActionIcon(action['action_type']),
+                color: _getActionColor(action['action_type']),
+              ),
+            ),
+            title: Text(action['name'] ?? 'Unnamed Action'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Type: ${_getActionTypeLabel(action['action_type'])}'),
+                if (action['target_screen_name'] != null)
+                  Text('Target: ${action['target_screen_name']}'),
+                if (action['api_data_source_name'] != null)
+                  Text('Data Source: ${action['api_data_source_name']}'),
+              ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                // Edit action
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontFamily: 'monospace'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -671,7 +921,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                                   backgroundColor: AppColors.success,
                                 ),
                               );
-                              // Refresh build history
                               _loadBuildHistory();
                             }
                           },
@@ -929,6 +1178,140 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       default:
         return status;
     }
+  }
+
+  Color _getDataSourceColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'api':
+      case 'rest':
+        return AppColors.info;
+      case 'graphql':
+        return Colors.purple;
+      case 'firebase':
+        return Colors.orange;
+      case 'database':
+        return AppColors.success;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  IconData _getDataSourceIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'api':
+      case 'rest':
+        return Icons.api;
+      case 'graphql':
+        return Icons.account_tree;
+      case 'firebase':
+        return Icons.local_fire_department;
+      case 'database':
+        return Icons.storage;
+      default:
+        return Icons.cloud;
+    }
+  }
+
+  Color _getActionColor(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'navigate':
+        return AppColors.primary;
+      case 'api_call':
+        return AppColors.info;
+      case 'show_dialog':
+        return AppColors.warning;
+      case 'open_url':
+        return Colors.purple;
+      case 'refresh_data':
+        return AppColors.success;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getActionIcon(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'navigate':
+        return Icons.arrow_forward;
+      case 'api_call':
+        return Icons.api;
+      case 'show_dialog':
+        return Icons.message;
+      case 'open_url':
+        return Icons.open_in_new;
+      case 'refresh_data':
+        return Icons.refresh;
+      default:
+        return Icons.flash_on;
+    }
+  }
+
+  String _getActionTypeLabel(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'navigate':
+        return 'Navigation';
+      case 'api_call':
+        return 'API Call';
+      case 'show_dialog':
+        return 'Show Dialog';
+      case 'open_url':
+        return 'Open URL';
+      case 'refresh_data':
+        return 'Refresh Data';
+      default:
+        return type ?? 'Unknown';
+    }
+  }
+
+  Future<void> _testDataSourceConnection(DataSource dataSource) async {
+    try {
+      Helpers.showLoadingDialog(context, message: 'Testing connection...');
+
+      final result = await _dataSourceRepository.testConnection(dataSource.id.toString());
+
+      Helpers.hideLoadingDialog(context);
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connection successful!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error'] ?? 'Connection failed'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      Helpers.hideLoadingDialog(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _showAddDataSourceDialog() {
+    // TODO: Implement add data source dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Data Source'),
+        content: const Text('Data source creation will be implemented'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showCloneDialog(BuildContext context, dynamic app) {
