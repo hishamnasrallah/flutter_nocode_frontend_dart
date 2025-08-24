@@ -1,5 +1,6 @@
 // lib/app.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_nocode_frontend/presentation/builder/simplified_screen_builder.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
@@ -138,11 +139,12 @@ class FlutterNoCodeApp extends StatelessWidget {
             return ApplicationDetailScreen(applicationId: id);
           },
         ),
+        // In lib/app.dart, update this route:
         GoRoute(
           path: '/applications/:id/builder',
           builder: (context, state) {
             final id = state.pathParameters['id']!;
-            return ScreenBuilder(applicationId: id);
+            return SimplifiedScreenBuilder(applicationId: id); // Changed from ScreenBuilder
           },
         ),
         GoRoute(
