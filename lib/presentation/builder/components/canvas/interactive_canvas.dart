@@ -4,7 +4,7 @@ import '../../../../data/models/screen.dart';
 import '../../../../data/models/app_widget.dart';
 import '../../../../core/constants/app_colors.dart';
 import 'live_preview_renderer.dart';
-import 'responsive_device_frame.dart' hide DeviceType, ResponsiveDeviceFrame;
+import 'responsive_device_frame.dart';
 import '../../utils/builder_state_manager.dart';
 
 class InteractiveCanvas extends StatefulWidget {
