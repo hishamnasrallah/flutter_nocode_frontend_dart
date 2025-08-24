@@ -17,15 +17,42 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+bool _hasInitialLoad = false;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Load data after frame is rendered to ensure context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Add a small delay to ensure tokens are properly saved
+      await Future.delayed(const Duration(milliseconds: 500));
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    if (_hasInitialLoad) return;
+
     final applicationProvider = context.read<ApplicationProvider>();
-    await applicationProvider.fetchApplications();
+
+    debugPrint('📊 Dashboard loading data...');
+
+    try {
+      await applicationProvider.fetchApplications();
+      _hasInitialLoad = true;
+    } catch (e) {
+      debugPrint('📊 Dashboard load error: $e');
+      // Retry once after a delay
+      if (!_hasInitialLoad) {
+        await Future.delayed(const Duration(seconds: 1));
+        try {
+          await applicationProvider.fetchApplications();
+          _hasInitialLoad = true;
+        } catch (retryError) {
+          debugPrint('📊 Dashboard retry failed: $retryError');
+        }
+      }
+    }
   }
 
   @override

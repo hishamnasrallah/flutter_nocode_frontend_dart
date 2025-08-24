@@ -1,8 +1,8 @@
 // lib/data/services/api_service.dart
+import 'dart:async'; // Add this import for Completer
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../core/constants/api_endpoints.dart';
 import 'storage_service.dart';
 
@@ -19,9 +19,9 @@ class ApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      // Add validateStatus to accept any status code
+      // Remove or modify validateStatus to trigger error interceptor for 401
       validateStatus: (status) {
-        return status! < 500;
+        return status != null && status >= 200 && status < 300;
       },
     ));
 
@@ -180,11 +180,19 @@ class ApiService {
 class AuthInterceptor extends Interceptor {
   final StorageService _storageService;
   final Dio _dio;
+  bool _isRefreshing = false;
+  final _refreshCompleter = <RequestOptions, Completer<Response>>{};
 
   AuthInterceptor(this._storageService, this._dio);
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // Skip auth header for refresh token endpoint
+    if (options.path.contains('/refresh')) {
+      handler.next(options);
+      return;
+    }
+
     final token = await _storageService.getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -194,41 +202,83 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401) {
-      // Try to refresh token
+    debugPrint('🔴 API Error: ${err.response?.statusCode} on ${err.requestOptions.path}');
+
+    if (err.response?.statusCode == 401 &&
+        !err.requestOptions.path.contains('/refresh') &&
+        !err.requestOptions.path.contains('/login') &&
+        !err.requestOptions.path.contains('/register')) {
+      // If already refreshing, wait for it to complete
+      if (_isRefreshing) {
+        final completer = Completer<Response>();
+        _refreshCompleter[err.requestOptions] = completer;
+
+        try {
+          final response = await completer.future;
+          return handler.resolve(response);
+        } catch (e) {
+          return handler.reject(err);
+        }
+      }
+
+      _isRefreshing = true;
       final refreshToken = await _storageService.getRefreshToken();
+
       if (refreshToken != null) {
         try {
-          final response = await _dio.post(
+          debugPrint('🔄 Attempting to refresh token...');
+
+          // Create a new Dio instance without interceptors to avoid infinite loop
+          final refreshDio = Dio(BaseOptions(
+            baseUrl: ApiEndpoints.baseUrl,
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10),
+          ));
+
+          final response = await refreshDio.post(
             ApiEndpoints.refreshToken,
             data: {'refresh': refreshToken},
           );
 
           final newAccessToken = response.data['access'];
+          final newRefreshToken = response.data['refresh'] ?? refreshToken;
+
           await _storageService.saveTokens(
             accessToken: newAccessToken,
-            refreshToken: refreshToken,
+            refreshToken: newRefreshToken,
           );
+
+          debugPrint('✅ Token refreshed successfully');
+
+          // Retry all pending requests
+          for (final entry in _refreshCompleter.entries) {
+            try {
+              entry.key.headers['Authorization'] = 'Bearer $newAccessToken';
+              final retryResponse = await _dio.fetch(entry.key);
+              entry.value.complete(retryResponse);
+            } catch (e) {
+              entry.value.completeError(e);
+            }
+          }
+          _refreshCompleter.clear();
 
           // Retry the original request
-          final options = err.requestOptions;
-          options.headers['Authorization'] = 'Bearer $newAccessToken';
-          final retryResponse = await _dio.request(
-            options.path,
-            options: Options(
-              method: options.method,
-              headers: options.headers,
-            ),
-            data: options.data,
-            queryParameters: options.queryParameters,
-          );
+          err.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+          final clonedRequest = await _dio.fetch(err.requestOptions);
+          _isRefreshing = false;
+          return handler.resolve(clonedRequest);
 
-          return handler.resolve(retryResponse);
         } catch (e) {
-          // Refresh failed, clear tokens
+          debugPrint('❌ Token refresh failed: $e');
+          _isRefreshing = false;
+          _refreshCompleter.clear();
+
+          // Clear tokens and redirect to login
           await _storageService.clearTokens();
+          await _storageService.clearUser();
         }
       }
+      _isRefreshing = false;
     }
     handler.next(err);
   }

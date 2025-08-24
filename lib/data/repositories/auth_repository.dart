@@ -1,4 +1,6 @@
 // lib/data/repositories/auth_repository.dart
+import 'package:flutter/cupertino.dart';
+
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../models/user.dart';
@@ -20,13 +22,42 @@ class AuthRepository {
     );
 
     final data = response.data;
+
+    // Debug log to verify token structure
+    debugPrint('🔐 Login response structure: ${data.keys.toList()}');
+
+    // Handle different response structures
+    String? accessToken;
+    String? refreshToken;
+    Map<String, dynamic>? userData;
+
+    // Check if tokens are nested or at root level
+    if (data['tokens'] != null) {
+      accessToken = data['tokens']['access'];
+      refreshToken = data['tokens']['refresh'];
+      userData = data['user'];
+    } else if (data['access'] != null) {
+      accessToken = data['access'];
+      refreshToken = data['refresh'];
+      userData = data['user'] ?? data;
+    } else {
+      throw Exception('Invalid login response structure');
+    }
+
+    debugPrint('🔐 Saving tokens - Access: ${accessToken?.substring(0, 20)}...');
+
+    // Save tokens first and wait for completion
     await _storageService.saveTokens(
-      accessToken: data['tokens']['access'],
-      refreshToken: data['tokens']['refresh'],
+      accessToken: accessToken!,
+      refreshToken: refreshToken!,
     );
 
-    final user = User.fromJson(data['user']);
-    await _storageService.saveUser(data['user']);
+    // Verify tokens were saved
+    final savedToken = await _storageService.getAccessToken();
+    debugPrint('🔐 Token saved and verified: ${savedToken != null}');
+
+    final user = User.fromJson(userData!);
+    await _storageService.saveUser(userData);
 
     return user;
   }

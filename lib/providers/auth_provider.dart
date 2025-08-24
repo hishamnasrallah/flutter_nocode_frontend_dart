@@ -77,6 +77,13 @@ class AuthProvider extends ChangeNotifier {
       _user = await _authRepository.login(username, password);
       _isAuthenticated = true;
       debugPrint('Login successful: ${_user?.username}');
+
+      // Notify listeners before loading state changes
+      notifyListeners();
+
+      // Allow UI to update before returning
+      await Future.delayed(const Duration(milliseconds: 100));
+
       _isLoading = false;
       notifyListeners();
       return true;

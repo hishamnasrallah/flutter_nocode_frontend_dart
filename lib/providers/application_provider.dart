@@ -351,7 +351,11 @@ class ApplicationProvider extends ChangeNotifier {
       return null;
     }
   }
-
+// Add this method to refresh data after authentication
+  Future<void> refreshAfterAuth() async {
+    debugPrint('🔄 Refreshing application data after auth...');
+    await fetchApplications();
+  }
   Future<Application?> createFromTemplate(String templateType, String name, String packageName) async {
     _isLoading = true;
     _error = null;

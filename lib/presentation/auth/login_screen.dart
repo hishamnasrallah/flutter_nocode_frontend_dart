@@ -1,4 +1,5 @@
 // lib/presentation/auth/login_screen.dart
+import '../../providers/application_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
 
@@ -44,8 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success && mounted) {
         debugPrint('Login successful, navigating to dashboard...');
-        // Force navigation to dashboard
+
+        // Navigate to dashboard first, let dashboard handle data loading
         context.go('/dashboard');
+
+        // Don't fetch data here, let dashboard do it
       } else if (mounted) {
         debugPrint('Login failed: ${authProvider.error}');
         ScaffoldMessenger.of(context).showSnackBar(
