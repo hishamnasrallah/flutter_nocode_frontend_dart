@@ -205,7 +205,7 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                 // Canvas toolbar
                 _buildCanvasToolbar(),
 
-                // Enhanced Canvas
+                // Enhanced Canvas - Fixed to be properly constrained
                 Expanded(
                   child: _buildEnhancedCanvas(builderProvider),
                 ),
@@ -378,26 +378,33 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
   }
 
   Widget _buildEnhancedCanvas(BuilderProvider builderProvider) {
-    return DragTarget<Map<String, dynamic>>(
-      onWillAccept: (data) => true,
-      onAccept: (widgetData) {
-        _addWidgetToCanvas(widgetData);
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isHighlighted = candidateData.isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return DragTarget<Map<String, dynamic>>(
+            onWillAccept: (data) => true,
+            onAccept: (widgetData) {
+              _addWidgetToCanvas(widgetData);
+            },
+            builder: (context, candidateData, rejectedData) {
+              final isHighlighted = candidateData.isNotEmpty;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-          ),
-          child: _showGrid
-              ? CustomPaint(
+              if (_showGrid) {
+                return CustomPaint(
+                  size: Size(constraints.maxWidth, constraints.maxHeight),
                   painter: GridPainter(color: Colors.grey[300]!.withOpacity(0.3)),
                   child: _buildCanvasContent(builderProvider, isHighlighted),
-                )
-              : _buildCanvasContent(builderProvider, isHighlighted),
-        );
-      },
+                );
+              } else {
+                return _buildCanvasContent(builderProvider, isHighlighted);
+              }
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -405,12 +412,13 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     return Center(
       child: SingleChildScrollView(
         controller: _canvasScrollController,
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.all(32),
           child: Transform.scale(
             scale: _zoomLevel,
             child: Container(
               width: 375, // iPhone width
+              height: 667, // iPhone height - fixed height
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border.all(
@@ -440,11 +448,13 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
   }
 
   Widget _buildEmptyScreenState() {
-    return Container(
+    return SizedBox(
+      width: double.infinity,
       height: 667,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.add_box_outlined,
@@ -477,57 +487,53 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
   Widget _buildEnhancedScreenPreview(BuilderProvider builderProvider) {
     final screen = builderProvider.selectedScreen!;
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 667),
-      child: Column(
-        children: [
-          if (screen.showAppBar)
-            Container(
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  if (screen.showBackButton)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {},
-                    ),
-                  Expanded(
-                    child: Text(
-                      screen.appBarTitle ?? screen.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: screen.showBackButton ? TextAlign.left : TextAlign.center,
-                    ),
-                  ),
-                  if (screen.showBackButton) const SizedBox(width: 48),
-                ],
-              ),
+    return Column(
+      children: [
+        if (screen.showAppBar)
+          Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          Expanded(
-            child: Container(
-              color: screen.backgroundColor != null
-                  ? Color(int.parse(screen.backgroundColor!.replaceAll('#', '0xFF')))
-                  : Colors.white,
-              child: builderProvider.widgets.isEmpty
-                  ? _buildEnhancedEmptyCanvasState()
-                  : _buildVisualWidgetTree(builderProvider),
+            child: Row(
+              children: [
+                if (screen.showBackButton)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {},
+                  ),
+                Expanded(
+                  child: Text(
+                    screen.appBarTitle ?? screen.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: screen.showBackButton ? TextAlign.left : TextAlign.center,
+                  ),
+                ),
+                if (screen.showBackButton) const SizedBox(width: 48),
+              ],
             ),
           ),
-        ],
-      ),
+        Container(
+          height: screen.showAppBar ? 611 : 667, // Fixed height instead of Expanded
+          color: screen.backgroundColor != null
+              ? Color(int.parse(screen.backgroundColor!.replaceAll('#', '0xFF')))
+              : Colors.white,
+          child: builderProvider.widgets.isEmpty
+              ? _buildEnhancedEmptyCanvasState()
+              : _buildVisualWidgetTree(builderProvider),
+        ),
+      ],
     );
   }
 
@@ -541,51 +547,56 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
         final isHighlighted = candidateData.isNotEmpty;
 
         return Container(
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(
+          width: double.infinity,
+          height: double.infinity,
+          padding: const EdgeInsets.all(16),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isHighlighted
+                    ? AppColors.primary
+                    : Colors.grey[300]!,
+                width: 2,
+                style: BorderStyle.solid,
+              ),
+              borderRadius: BorderRadius.circular(12),
               color: isHighlighted
-                  ? AppColors.primary
-                  : Colors.grey[300]!,
-              width: 2,
-              style: BorderStyle.solid,
+                  ? AppColors.primary.withOpacity(0.05)
+                  : Colors.grey[50],
             ),
-            borderRadius: BorderRadius.circular(12),
-            color: isHighlighted
-                ? AppColors.primary.withOpacity(0.05)
-                : Colors.grey[50],
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_circle_outline,
-                  size: 64,
-                  color: isHighlighted
-                      ? AppColors.primary
-                      : Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Drop widgets here',
-                  style: TextStyle(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_circle_outline,
+                    size: 64,
                     color: isHighlighted
                         ? AppColors.primary
-                        : Colors.grey[600],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                        : Colors.grey[400],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Drag from the widget toolkit',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 14,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Drop widgets here',
+                    style: TextStyle(
+                      color: isHighlighted
+                          ? AppColors.primary
+                          : Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Drag from the widget toolkit',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -596,10 +607,10 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
   Widget _buildVisualWidgetTree(BuilderProvider builderProvider) {
     // Group widgets by parent
     final Map<int?, List<AppWidget>> widgetsByParent = {};
-    for (var widget in builderProvider.widgets) {
-      final parentId = widget.parentWidget;
+    for (var widgetModel in builderProvider.widgets) {
+      final parentId = widgetModel.parentWidget;
       widgetsByParent[parentId] ??= [];
-      widgetsByParent[parentId]!.add(widget);
+      widgetsByParent[parentId]!.add(widgetModel);
     }
 
     // Sort each group by order
@@ -610,185 +621,197 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     // Build root widgets (no parent)
     final rootWidgets = widgetsByParent[null] ?? [];
 
-    return SingleChildScrollView(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rootWidgets.map((widget) {
-          return _buildWidgetNode(widget, widgetsByParent, builderProvider, 0);
-        }).toList(),
-      ),
+      shrinkWrap: false, // Don't shrink wrap in a fixed container
+      children: rootWidgets.map((widgetModel) {
+        return _buildWidgetNode(widgetModel, widgetsByParent, builderProvider, 0);
+      }).toList(),
     );
   }
 
   Widget _buildWidgetNode(
-    AppWidget widget,
+    AppWidget widgetModel, // Changed from 'widget' to avoid confusion
     Map<int?, List<AppWidget>> widgetsByParent,
     BuilderProvider builderProvider,
     int depth,
   ) {
-    final isSelected = builderProvider.selectedWidget?.id == widget.id;
-    final children = widgetsByParent[widget.id] ?? [];
+    final isSelected = builderProvider.selectedWidget?.id == widgetModel.id;
+    final children = widgetsByParent[widgetModel.id] ?? [];
     final hasChildren = children.isNotEmpty;
 
-    return Padding(
-      padding: EdgeInsets.only(left: depth * 20.0, bottom: 8),
+    return Container(
+      margin: EdgeInsets.only(left: depth * 20.0, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            onTap: () {
-              builderProvider.selectWidget(widget);
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary
-                      : _showOutlines
-                          ? Colors.grey[300]!
-                          : Colors.transparent,
-                  width: isSelected ? 2 : 1,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                debugPrint('Widget tapped: ${widgetModel.widgetType} (ID: ${widgetModel.id})');
+                builderProvider.selectWidget(widgetModel);
+              },
+              child: Container(
+                // Ensure minimum height for hit testing
+                constraints: const BoxConstraints(
+                  minHeight: 60,
                 ),
-                borderRadius: BorderRadius.circular(8),
-                color: isSelected
-                    ? AppColors.primary.withOpacity(0.1)
-                    : Colors.white.withOpacity(0.8),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                children: [
-                  // Widget header
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getWidgetColor(widget.widgetType).withOpacity(0.1),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getWidgetIcon(widget.widgetType),
-                          size: 18,
-                          color: _getWidgetColor(widget.widgetType),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.widgetType,
-                                style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  fontSize: 13,
-                                  color: _getWidgetColor(widget.widgetType),
-                                ),
-                              ),
-                              if (widget.widgetId != null)
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primary
+                        : _showOutlines
+                            ? Colors.grey[300]!
+                            : Colors.transparent,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  color: isSelected
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.white.withOpacity(0.8),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Widget header
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _getWidgetColor(widgetModel.widgetType).withOpacity(0.1),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getWidgetIcon(widgetModel.widgetType),
+                            size: 18,
+                            color: _getWidgetColor(widgetModel.widgetType),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Text(
-                                  '#${widget.widgetId}',
+                                  widgetModel.widgetType,
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    fontSize: 13,
+                                    color: _getWidgetColor(widgetModel.widgetType),
                                   ),
                                 ),
+                                if (widgetModel.widgetId != null)
+                                  Text(
+                                    '#${widgetModel.widgetId}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (hasChildren)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${children.length}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          PopupMenuButton<String>(
+                            icon: Icon(Icons.more_vert, size: 16, color: Colors.grey[600]),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'delete':
+                                  _deleteWidget(widgetModel);
+                                  break;
+                                case 'duplicate':
+                                  _duplicateWidget(widgetModel);
+                                  break;
+                                case 'moveUp':
+                                  _moveWidgetUp(widgetModel);
+                                  break;
+                                case 'moveDown':
+                                  _moveWidgetDown(widgetModel);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'duplicate',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.copy, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Duplicate'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'moveUp',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.arrow_upward, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Move Up'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'moveDown',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.arrow_downward, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Move Down'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, size: 16, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Delete', style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                        if (hasChildren)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${children.length}',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                          ),
-                        const SizedBox(width: 8),
-                        PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert, size: 16, color: Colors.grey[600]),
-                          onSelected: (value) {
-                            switch (value) {
-                              case 'delete':
-                                _deleteWidget(widget);
-                                break;
-                              case 'duplicate':
-                                _duplicateWidget(widget);
-                                break;
-                              case 'moveUp':
-                                _moveWidgetUp(widget);
-                                break;
-                              case 'moveDown':
-                                _moveWidgetDown(widget);
-                                break;
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'duplicate',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.copy, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Duplicate'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'moveUp',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.arrow_upward, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Move Up'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'moveDown',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.arrow_downward, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Move Down'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete, size: 16, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Delete', style: TextStyle(color: Colors.red)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  // Widget content preview
-                  if (!hasChildren)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      child: _buildWidgetPreview(widget),
-                    ),
-                ],
+                    // Widget content preview
+                    if (!hasChildren)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        constraints: const BoxConstraints(
+                          minHeight: 40,
+                        ),
+                        child: _buildWidgetPreview(widgetModel),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -807,6 +830,7 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: children.map((child) {
                   return _buildWidgetNode(child, widgetsByParent, builderProvider, depth + 1);
                 }).toList(),
@@ -818,41 +842,48 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     );
   }
 
-  Widget _buildWidgetPreview(AppWidget widget) {
+  Widget _buildWidgetPreview(AppWidget widgetModel) {
     // Simple preview based on widget type
-    switch (widget.widgetType) {
+    Widget preview;
+
+    switch (widgetModel.widgetType) {
       case 'Text':
-        return Text(
-          _getPropertyValue(widget, 'text') ?? 'Sample Text',
+        preview = Text(
+          _getPropertyValue(widgetModel, 'text') ?? 'Sample Text',
           style: TextStyle(color: Colors.grey[700]),
         );
+        break;
       case 'Button':
       case 'ElevatedButton':
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            _getPropertyValue(widget, 'text') ?? 'Button',
-            style: const TextStyle(color: Colors.white),
+        preview = Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              _getPropertyValue(widgetModel, 'text') ?? 'Button',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         );
+        break;
       case 'TextField':
-        return Container(
+        preview = Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
-            _getPropertyValue(widget, 'hintText') ?? 'Enter text...',
+            _getPropertyValue(widgetModel, 'hintText') ?? 'Enter text...',
             style: TextStyle(color: Colors.grey[500]),
           ),
         );
+        break;
       case 'Image':
-        return Container(
+        preview = Container(
           height: 60,
           decoration: BoxDecoration(
             color: Colors.grey[200],
@@ -862,8 +893,9 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
             child: Icon(Icons.image, color: Colors.grey),
           ),
         );
+        break;
       case 'Container':
-        return Container(
+        preview = Container(
           height: 40,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
@@ -876,16 +908,29 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
             ),
           ),
         );
+        break;
       default:
-        return const SizedBox(height: 20);
+        preview = Container(
+          height: 40,
+          alignment: Alignment.center,
+          child: Text(
+            widgetModel.widgetType,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+        );
     }
+
+    return SizedBox(
+      width: double.infinity,
+      child: preview,
+    );
   }
 
-  String? _getPropertyValue(AppWidget widget, String propertyName) {
-    if (widget.properties == null) return null;
+  String? _getPropertyValue(AppWidget widgetModel, String propertyName) {
+    if (widgetModel.properties == null) return null;
 
     try {
-      final property = widget.properties!.firstWhere(
+      final property = widgetModel.properties!.firstWhere(
         (p) => p.propertyName == propertyName,
       );
       return property.getDisplayValue();
@@ -898,31 +943,33 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        child: Container(
+        child: SizedBox(
           width: 400,
           height: 600,
-          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.account_tree, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Widget Tree',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_tree, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Widget Tree',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
               ),
-              const Divider(),
+              const Divider(height: 1),
               Expanded(
                 child: _buildTreeView(builderProvider),
               ),
@@ -942,33 +989,36 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
 
     // Build tree structure
     final Map<int?, List<AppWidget>> widgetsByParent = {};
-    for (var widget in builderProvider.widgets) {
-      final parentId = widget.parentWidget;
+    for (var widgetModel in builderProvider.widgets) {
+      final parentId = widgetModel.parentWidget;
       widgetsByParent[parentId] ??= [];
-      widgetsByParent[parentId]!.add(widget);
+      widgetsByParent[parentId]!.add(widgetModel);
     }
 
     final rootWidgets = widgetsByParent[null] ?? [];
 
-    return ListView(
-      children: rootWidgets.map((widget) {
-        return _buildTreeNode(widget, widgetsByParent, 0);
-      }).toList(),
+    return ListView.builder(
+      itemCount: rootWidgets.length,
+      itemBuilder: (context, index) {
+        return _buildTreeNode(rootWidgets[index], widgetsByParent, 0);
+      },
     );
   }
 
   Widget _buildTreeNode(
-    AppWidget widget,
+    AppWidget widgetModel,
     Map<int?, List<AppWidget>> widgetsByParent,
     int depth,
   ) {
-    final children = widgetsByParent[widget.id] ?? [];
+    final children = widgetsByParent[widgetModel.id] ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
+        Container(
           padding: EdgeInsets.only(left: depth * 20.0),
+          height: 30,
           child: Row(
             children: [
               if (children.isNotEmpty)
@@ -976,19 +1026,19 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
               else
                 const SizedBox(width: 20),
               Icon(
-                _getWidgetIcon(widget.widgetType),
+                _getWidgetIcon(widgetModel.widgetType),
                 size: 16,
-                color: _getWidgetColor(widget.widgetType),
+                color: _getWidgetColor(widgetModel.widgetType),
               ),
               const SizedBox(width: 8),
               Text(
-                widget.widgetType,
+                widgetModel.widgetType,
                 style: const TextStyle(fontSize: 14),
               ),
-              if (widget.widgetId != null) ...[
+              if (widgetModel.widgetId != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  '#${widget.widgetId}',
+                  '#${widgetModel.widgetId}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -1161,43 +1211,46 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Add New Screen'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Screen Name',
-                  border: OutlineInputBorder(),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Screen Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: routeController,
-                decoration: const InputDecoration(
-                  labelText: 'Route Path',
-                  border: OutlineInputBorder(),
-                  hintText: '/screen-name',
+                const SizedBox(height: 16),
+                TextField(
+                  controller: routeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Route Path',
+                    border: OutlineInputBorder(),
+                    hintText: '/screen-name',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text('Set as Home Screen'),
-                value: isHomeScreen,
-                onChanged: (value) {
-                  setState(() {
-                    isHomeScreen = value ?? false;
-                  });
-                },
-              ),
-            ],
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('Set as Home Screen'),
+                  value: isHomeScreen,
+                  onChanged: (value) {
+                    setState(() {
+                      isHomeScreen = value ?? false;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -1209,7 +1262,7 @@ class _ScreenBuilderState extends State<ScreenBuilder> {
                   routeName: routeController.text,
                   isHomeScreen: isHomeScreen,
                 );
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 _loadData();
               },
               child: const Text('Create'),
